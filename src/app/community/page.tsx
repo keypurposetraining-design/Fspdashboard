@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/Input";
 import { ScrollArea } from "@/components/ui/ScrollArea";
-import { LucideIcon, Heart, MessageCircle, Share2, Filter } from "lucide-react";
+import { Heart, MessageCircle, Share2, Filter, Users, HelpCircle, Upload, UserPlus, Pen, Search } from "lucide-react";
 import { mockPosts, mockLeaderboard, mockUser } from "@/data/mockData";
 
 // Dummy member directory data
@@ -320,15 +320,15 @@ export default function CommunityPage() {
         <h2 className="text-2xl font-semibold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {[
-            { label: "Create Post", icon: "Pen" },
-            { label: "Find Members", icon: "Search" },
-            { label: "Join Group", icon: "Users" },
-            { label: "Ask Question", icon: "HelpCircle" },
-            { label: "Share Resource", icon: "Upload" },
-            { label: "Invite Friend", icon: "UserPlus" },
+            { label: "Create Post", Icon: Pen },
+            { label: "Find Members", Icon: Search },
+            { label: "Join Group", Icon: Users },
+            { label: "Ask Question", Icon: HelpCircle },
+            { label: "Share Resource", Icon: Upload },
+            { label: "Invite Friend", Icon: UserPlus },
           ].map((action) => (
             <Card key={action.label} className="p-6 flex flex-col items-center hover:shadow-lg transition-shadow text-center">
-              <LucideIcon name={action.icon as any} className="w-8 h-8 mb-2 text-primary" />
+              <action.Icon className="w-8 h-8 mb-2 text-primary" />
               <span className="font-medium">{action.label}</span>
             </Card>
           ))}

@@ -30,8 +30,8 @@ import {
   FileText,
   HelpCircle,
   Ticket,
-  MailCheck,
-  PhoneCheck,
+  Mail as MailCheck,
+  Phone as PhoneCheck,
   Tv,
   Palette,
 } from "lucide-react";

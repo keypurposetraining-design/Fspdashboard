@@ -7,7 +7,7 @@ export interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode; // made optional
   trend?: {
     value: string;
     isUpward: boolean;
@@ -46,14 +46,16 @@ export const StatCard: React.FC<StatCardProps> = ({
             <p className="text-xs text-slate-500 mt-1 font-medium">{subtitle}</p>
           )}
         </div>
-        <div
-          className={clsx(
-            "p-3 rounded-2xl shrink-0 transition-transform duration-300 hover:scale-105",
-            iconBgStyles[color]
-          )}
-        >
-          {icon}
-        </div>
+        {icon && (
+          <div
+            className={clsx(
+              "p-3 rounded-2xl shrink-0 transition-transform duration-300 hover:scale-105",
+              iconBgStyles[color]
+            )}
+          >
+            {icon}
+          </div>
+        )}
       </div>
 
       {(trend || badge) && (

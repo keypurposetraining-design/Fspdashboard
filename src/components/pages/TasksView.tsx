@@ -643,10 +643,10 @@ export const TasksView: React.FC = () => {
             <div className="space-y-4">
               <Quote className="w-10 h-10 text-blue-400 opacity-80" />
               <blockquote className="text-lg font-extrabold text-white leading-snug tracking-tight">
-                "Small daily progress creates remarkable results."
+                &quot;Small daily progress creates remarkable results.&quot;
               </blockquote>
               <p className="text-xs text-blue-200">
-                You have completed <strong className="text-white">75%</strong> of today's learning goal.
+                You have completed <strong className="text-white">75%</strong> of today&apos;s learning goal.
               </p>
             </div>
 

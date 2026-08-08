@@ -51,20 +51,27 @@ const AuthContext = createContext<AuthContextProps>({
  * "member", also fetch the latest membership status.
  */
 const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & { membershipStatus: 'active' | 'expired' | null }> => {
+  console.log('FETCH PROFILE START', { supabaseUserId: supabaseUser.id });
+  // Use maybeSingle so that a missing row doesn't throw a PGRST116 error.
   const { data: userData, error: userErr } = await supabase
     .from('users')
     .select('id, email, role, name')
     .eq('id', supabaseUser.id)
-    .single();
+    .maybeSingle();
+  console.log('PROFILE QUERY RESULT', { userData, userErr });
 
   if (userErr) {
     console.error('Failed to fetch user profile', userErr.message, userErr);
-    // If no matching row, provide a clearer error
-    if (userErr.code === 'PGRST116' || userErr.message?.includes('Cannot coerce')) {
-      throw new Error('Authenticated user has no matching public.users profile');
-    }
+    // Propagate any other errors
     throw userErr;
   }
+
+  // If there is no matching public.users row, fall back to basic auth info.
+  if (!userData) {
+    // No matching public.users row – throw a clear error.
+    throw new Error('Authenticated user has no matching public.users profile');
+  }
+
 
   let membershipStatus: 'active' | 'expired' | null = null;
 
@@ -95,6 +102,7 @@ const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & 
     }
   }
 
+  console.log('PROFILE FINAL RESULT', { userData, membershipStatus });
   return {
     id: userData.id,
     email: userData.email,
@@ -112,6 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [membershipStatus, setMembershipStatus] = useState<'active' | 'expired' | null>(null);
 
   const refreshUser = async (supabaseUser?: SupabaseUser) => {
+    console.log('REFRESH USER START', { supabaseUserId: supabaseUser?.id });
     try {
       if (!supabaseUser) {
         setUser(null);
@@ -120,6 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       const profile = await fetchUserProfile(supabaseUser);
+      console.log('REFRESH USER SUCCESS', { profile });
       setUser({
         id: profile.id,
         email: profile.email,
@@ -137,43 +147,68 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-    setSession(newSession);
-    if (newSession?.user) {
-      await refreshUser(newSession.user);
-    } else {
-      setUser(null);
-      setRole(null);
-      setMembershipStatus(null);
-    }
-    setLoading(false);
-  });
-
-  supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-    setSession(existingSession);
-    if (existingSession?.user) {
-      refreshUser(existingSession.user).finally(() => setLoading(false));
-    } else {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      console.log('onAuthStateChange', { event: _event, newSession });
+      setSession(newSession);
+      if (newSession?.user) {
+        await refreshUser(newSession.user);
+      } else {
+        setUser(null);
+        setRole(null);
+        setMembershipStatus(null);
+      }
       setLoading(false);
-    }
-  });
+    });
 
-  return () => {
-    subscription.unsubscribe();
-  };
-}, []);
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      console.log('initial getSession', { existingSession });
+      setSession(existingSession);
+      if (existingSession?.user) {
+        refreshUser(existingSession.user).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
+    console.log('LOGIN START');
     setLoading(true);
     const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    console.log('SUPABASE SIGN IN RESULT', { error, data });
     if (error) {
       setLoading(false);
       throw error;
     }
-    await refreshUser(data.user);
-    setLoading(false);
+    // Ensure the Supabase auth cookie is set for SSR middleware
+    if (data.session) {
+      try {
+        await supabase.auth.setSession(data.session);
+        console.log('Supabase session cookie set');
+        // Force retrieval to ensure cookie sync before UI redirects
+        await supabase.auth.getSession();
+        console.log('Supabase session fetched after set');
+      } catch (sessErr) {
+        console.error('Failed to set Supabase session cookie', sessErr);
+      }
+    }
+    try {
+      await refreshUser(data.user);
+    } catch (e: any) {
+      console.error('Login refreshUser failed', e);
+      // surface a friendly error for missing profile
+      if (e.message?.includes('no matching public.users')) {
+        throw new Error('Your account is not linked to a user profile. Please contact support.');
+      }
+      throw e;
+    } finally {
+      setLoading(false);
+    }
+    console.log('LOGIN COMPLETE');
   };
 
   const logout = async () => {

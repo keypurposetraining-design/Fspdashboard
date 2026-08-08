@@ -9,7 +9,7 @@ import { Table } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import {
   Download,
-  Certificate,
+  Verified as Certificate,
   Plus,
   Upload,
   BarChart2,
@@ -21,8 +21,9 @@ import {
   ArrowRight,
   Settings,
   MessageSquare,
-  Linkedin,
+  Link as Linkedin,
   Award,
+  Copy,
 } from "lucide-react";
 import {
   mockCertificateTemplates,

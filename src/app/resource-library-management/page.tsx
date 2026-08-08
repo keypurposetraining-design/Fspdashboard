@@ -23,6 +23,8 @@ import {
   HelpCircle,
   Mail,
   ArrowRight,
+  Trash2,
+  Star,
 } from "lucide-react";
 import {
   mockResources,

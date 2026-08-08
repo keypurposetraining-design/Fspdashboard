@@ -16,7 +16,7 @@ import {
   Phone,
   Slack,
   Users,
-  MailCheck,
+  Mail as MailCheck,
   Pen,
   Search,
   HelpCircle,
@@ -238,7 +238,7 @@ export default function NotificationsPage() {
       {/* Section 10 – Empty State (fallback when no notifications) */}
       {mockNotifications.length === 0 && (
         <section className="text-center py-12">
-          <p className="text-xl mb-4">You're all caught up.</p>
+          <p className="text-xl mb-4">You&apos;re all caught up.</p>
           <p className="text-muted-foreground mb-6">No new notifications available.</p>
           <Button size="lg" asChild>
             <a href="/dashboard">Go to Dashboard</a>

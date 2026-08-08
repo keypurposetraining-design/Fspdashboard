@@ -3,11 +3,12 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "soft";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "soft" | "default"; // added default
   size?: "sm" | "md" | "lg" | "icon";
   icon?: React.ReactNode;
   iconPosition?: "left" | "right";
   fullWidth?: boolean;
+  asChild?: boolean; // support asChild pattern
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -19,6 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
   iconPosition = "left",
   fullWidth = false,
   disabled,
+  asChild,
   ...props
 }) => {
   const baseStyles =
@@ -46,12 +48,32 @@ export const Button: React.FC<ButtonProps> = ({
     icon: "p-2.5 w-10 h-10 rounded-xl justify-center items-center",
   };
 
+  if (asChild && React.isValidElement(children)) {
+    // Clone child element to inherit button styles and props
+    const child = children as React.ReactElement;
+    const childClass = child.props.className || "";
+    return React.cloneElement(child, {
+      ...props,
+      className: twMerge(
+        clsx(
+          baseStyles,
+          variantStyles[variant === "default" ? "primary" : variant],
+          sizeStyles[size],
+          fullWidth && "w-full",
+          childClass,
+          className
+        )
+      ),
+      disabled,
+    });
+  }
+
   return (
     <button
       className={twMerge(
         clsx(
           baseStyles,
-          variantStyles[variant],
+          variantStyles[variant === "default" ? "primary" : variant],
           sizeStyles[size],
           fullWidth && "w-full",
           className

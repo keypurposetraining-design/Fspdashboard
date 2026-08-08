@@ -6,12 +6,12 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
   Download,
-  Certificate,
+  Verified as Certificate,
   CheckSquare,
   Lock,
   ArrowRight,
-  Linkedin,
-  Facebook,
+  Link as Linkedin,
+  Globe as Facebook,
   MessageSquare,
   Mail,
   ClipboardCopy,

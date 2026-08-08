@@ -20,22 +20,28 @@ const LoginPage = () => {
 
   // Redirect after login based on role
   useEffect(() => {
-    if (user && !authLoading) {
-      switch (user.role) {
-        case 'super_admin':
-        case 'admin':
-          router.replace('/admin/dashboard');
-          break;
-        case 'trainer':
-          router.replace('/trainer/dashboard');
-          break;
-        case 'member':
-          router.replace('/dashboard');
-          break;
-        default:
-          router.replace('/');
+    console.log('LOGIN PAGE REDIRECT CHECK', { user, role: user?.role, authLoading });
+      if (user && !authLoading) {
+        console.log('REDIRECT TO ADMIN', { role: user.role });
+        switch (user.role) {
+          case 'super_admin':
+          case 'admin':
+            // Slight delay to ensure auth cookie is persisted before navigation
+            setTimeout(() => router.replace('/admin/dashboard'), 500);
+            break;
+          case 'trainer':
+            setTimeout(() => router.replace('/trainer/dashboard'), 500);
+            break;
+          case 'member':
+            setTimeout(() => router.replace('/dashboard'), 500);
+            break;
+          default:
+            setTimeout(() => router.replace('/'), 500);
+            break;
+        }
+      } else {
+        console.log('REDIRECT NOT TRIGGERED', { user, role: user?.role, authLoading });
       }
-    }
   }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -465,7 +465,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-black text-slate-900 tracking-tight">
-              Today's Tasks
+              Today&apos;s Tasks
             </h2>
             <p className="text-xs text-slate-500">
               Action items requiring your attention today.

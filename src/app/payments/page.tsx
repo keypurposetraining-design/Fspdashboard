@@ -275,7 +275,7 @@ export default function PaymentsPage() {
       <section>
         <h2 className="mb-4 text-xl font-semibold text-primary">FAQs</h2>
         <div className="space-y-2">
-          {["How do I renew?", "How do I download my invoice?", "Can I pay later?", "Who should I contact?"]].map((q, i) => (
+          {["How do I renew?", "How do I download my invoice?", "Can I pay later?", "Who should I contact?"].map((q, i) => (
             <details key={i} className="rounded border p-3 bg-slate-50">
               <summary className="font-medium cursor-pointer flex items-center">
                 <HelpCircle className="mr-2" size={16} />{q}
