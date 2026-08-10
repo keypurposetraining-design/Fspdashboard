@@ -1,8 +1,9 @@
 "use client";
 // src/components/auth/AuthProvider.tsx
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { logMemberActivity } from '@/lib/activity-log';
 
 /**
  * Role values are stored in the "users" table in lowercase.
@@ -51,14 +52,12 @@ const AuthContext = createContext<AuthContextProps>({
  * "member", also fetch the latest membership status.
  */
 const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & { membershipStatus: 'active' | 'expired' | null }> => {
-  console.log('FETCH PROFILE START', { supabaseUserId: supabaseUser.id });
   // Use maybeSingle so that a missing row doesn't throw a PGRST116 error.
   const { data: userData, error: userErr } = await supabase
     .from('users')
     .select('id, email, role, name')
     .eq('id', supabaseUser.id)
     .maybeSingle();
-  console.log('PROFILE QUERY RESULT', { userData, userErr });
 
   if (userErr) {
     console.error('Failed to fetch user profile', userErr.message, userErr);
@@ -78,7 +77,7 @@ const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & 
   if (userData?.role === 'member') {
     const { data: membershipData, error: memErr } = await supabase
       .from('memberships')
-      .select('status, expires_at')
+      .select('status, end_date')
       .eq('user_id', userData.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -89,9 +88,9 @@ const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & 
       membershipStatus = 'expired';
     } else {
       if (membershipData?.status === 'active') {
-        if (membershipData.expires_at) {
+        if (membershipData.end_date) {
           const now = new Date();
-          const expires = new Date(membershipData.expires_at);
+          const expires = new Date(membershipData.end_date);
           membershipStatus = now <= expires ? 'active' : 'expired';
         } else {
           membershipStatus = 'active';
@@ -102,7 +101,6 @@ const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & 
     }
   }
 
-  console.log('PROFILE FINAL RESULT', { userData, membershipStatus });
   return {
     id: userData.id,
     email: userData.email,
@@ -120,7 +118,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [membershipStatus, setMembershipStatus] = useState<'active' | 'expired' | null>(null);
 
   const refreshUser = async (supabaseUser?: SupabaseUser) => {
-    console.log('REFRESH USER START', { supabaseUserId: supabaseUser?.id });
     try {
       if (!supabaseUser) {
         setUser(null);
@@ -129,7 +126,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       const profile = await fetchUserProfile(supabaseUser);
-      console.log('REFRESH USER SUCCESS', { profile });
       setUser({
         id: profile.id,
         email: profile.email,
@@ -148,7 +144,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      console.log('onAuthStateChange', { event: _event, newSession });
       setSession(newSession);
       if (newSession?.user) {
         await refreshUser(newSession.user);
@@ -161,7 +156,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      console.log('initial getSession', { existingSession });
       setSession(existingSession);
       if (existingSession?.user) {
         refreshUser(existingSession.user).finally(() => setLoading(false));
@@ -176,11 +170,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    console.log('LOGIN START');
     setLoading(true);
     const { error, data } = await supabase.auth.signInWithPassword({ email, password });
-    console.log('SUPABASE SIGN IN RESULT', { error, data });
     if (error) {
+      await logMemberActivity("AUTH_LOGIN_FAILED", { email });
       setLoading(false);
       throw error;
     }
@@ -188,17 +181,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (data.session) {
       try {
         await supabase.auth.setSession(data.session);
-        console.log('Supabase session cookie set');
         // Force retrieval to ensure cookie sync before UI redirects
         await supabase.auth.getSession();
-        console.log('Supabase session fetched after set');
       } catch (sessErr) {
         console.error('Failed to set Supabase session cookie', sessErr);
       }
     }
     try {
       await refreshUser(data.user);
+      await logMemberActivity("AUTH_LOGIN");
     } catch (e: any) {
+      await logMemberActivity("AUTH_LOGIN_FAILED", { email, reason: e.message || "refresh_failed" });
       console.error('Login refreshUser failed', e);
       // surface a friendly error for missing profile
       if (e.message?.includes('no matching public.users')) {
@@ -208,11 +201,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-    console.log('LOGIN COMPLETE');
   };
 
   const logout = async () => {
     setLoading(true);
+    await logMemberActivity("AUTH_LOGOUT");
     const { error } = await supabase.auth.signOut();
     if (error) {
       setLoading(false);

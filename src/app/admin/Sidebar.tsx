@@ -40,6 +40,7 @@ const menuItems = [
   { label: "Reports", href: "/admin/reports", icon: BarChart2 },
   { label: "Settings", href: "/admin/settings", icon: Settings },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: ShieldCheck },
+  { label: "Member Activity Logs", href: "/admin/member-logs", icon: Activity },
   { label: "Support", href: "/admin/support", icon: HelpCircle },
 ];
 

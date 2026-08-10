@@ -1,773 +1,399 @@
-import React, { useState } from "react";
-import {
-  mockUser,
-  mockCategorizedTasks,
-  mockAchievementBadges,
-  mockLeaderboard,
-  mockTaskHistoryTable,
-  mockRemindersTimeline,
-  TaskCategoryItem,
-} from "@/data/mockData";
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 import {
   CheckSquare,
   CheckCircle2,
   Clock,
-  Lock,
-  Flame,
-  Trophy,
-  Award,
-  BookOpen,
-  Calendar,
-  Sparkles,
-  ArrowRight,
-  Filter,
-  Medal,
-  PlayCircle,
+  RefreshCcw,
   Upload,
   Download,
-  MessageSquare,
-  Rocket,
-  Star,
-  Quote,
-  Zap,
+  X
 } from "lucide-react";
-import { clsx } from "clsx";
+import { logMemberActivity } from "@/lib/activity-log";
 
 export const TasksView: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [taskList, setTaskList] = useState<TaskCategoryItem[]>(mockCategorizedTasks);
+  const { user } = useAuth();
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
 
-  // Category Tabs Filter
-  const categories = ["All", "Learning", "Marketing", "Practice", "Reading", "Community", "Certification"];
+  const [member, setMember] = useState<any>(null);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
 
-  const filteredTasks = taskList.filter((t) => {
-    if (selectedCategory === "All") return true;
-    return t.category === selectedCategory;
-  });
+  // Submissions Modal State
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const toggleTaskComplete = (taskId: string) => {
-    setTaskList((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: t.status === "Completed" ? "Pending" : "Completed" } : t))
-    );
+  useEffect(() => {
+    fetchInitialData();
+  }, [user]);
+
+  async function fetchInitialData() {
+    if (!user) return;
+    try {
+      setLoading(true);
+      // Fetch member profile
+      const { data: memberData, error: memberErr } = await supabase
+        .from("members")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (memberErr) throw memberErr;
+      if (memberData) {
+        setMember(memberData);
+
+        // Fetch all tasks
+        const { data: tasksData, error: tasksErr } = await supabase
+          .from("tasks")
+          .select("*, courses(title)");
+        if (tasksErr) throw tasksErr;
+        setTasks(tasksData || []);
+
+        // Fetch user submissions
+        const { data: subsData, error: subsErr } = await supabase
+          .from("task_submissions")
+          .select("*")
+          .eq("member_id", memberData.id);
+        if (subsErr) throw subsErr;
+        setSubmissions(subsData || []);
+
+        await logMemberActivity("TASK_VIEW");
+      }
+    } catch (err: any) {
+      console.error("Error fetching tasks/submissions:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Sanitize Filename
+  const sanitizeFilename = (name: string) => {
+    return name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
   };
 
-  // Horizontal Journey Steps for Section 2
-  const roadmapSteps = [
-    { title: "Explorer", status: "completed" },
-    { title: "Foundation Facilitator", status: "completed" },
-    { title: "Level 1 Completed ✅", status: "completed" },
-    { title: "Level 2 In Progress 🔄", status: "current" },
-    { title: "Level 3 Locked 🔒", status: "upcoming" },
-    { title: "Certified Facilitator", status: "upcoming" },
-  ];
+  // Handle File Selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selected = e.target.files[0];
 
-  // Quick Actions list for Section 10
-  const quickActions = [
-    { label: "Start Today's Task", icon: <PlayCircle className="w-5 h-5 text-[#0F4CFF]" /> },
-    { label: "Continue Challenge", icon: <Flame className="w-5 h-5 text-[#FF7A00]" /> },
-    { label: "View Reading Journal", icon: <BookOpen className="w-5 h-5 text-purple-600" /> },
-    { label: "Upload Proof", icon: <Upload className="w-5 h-5 text-emerald-600" /> },
-    { label: "Download Workbook", icon: <Download className="w-5 h-5 text-indigo-600" /> },
-    { label: "Contact Mentor", icon: <MessageSquare className="w-5 h-5 text-teal-600" /> },
-  ];
+      // Validate Size (5MB)
+      if (selected.size > 5 * 1024 * 1024) {
+        alert("Maximum allowed file size is 5MB.");
+        return;
+      }
+
+      // Validate Allowed Types
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/png",
+        "image/jpeg",
+        "image/jpg"
+      ];
+      if (!allowedTypes.includes(selected.type)) {
+        alert("Unsupported file type! Please upload a PDF, Word Doc, or PNG/JPG image.");
+        return;
+      }
+
+      setFile(selected);
+      setUploadStatus("File selected successfully.");
+    }
+  };
+
+  // Handle Upload Submission
+  const handleSubmitTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!member || !selectedTask || !file || !user) return;
+
+    try {
+      setSubmitting(true);
+      setUploadStatus("Uploading file to secure storage...");
+
+      const sanitized = sanitizeFilename(file.name);
+      const storagePath = `${user.id}/${selectedTask.id}/${Date.now()}_${sanitized}`;
+
+      // Upload to Supabase Storage
+      const { data, error: uploadErr } = await supabase.storage
+        .from("task-submissions")
+        .upload(storagePath, file, { cacheControl: "3600", upsert: true });
+
+      if (uploadErr) throw uploadErr;
+
+      setUploadStatus("Recording submission...");
+
+      // Check if submission record already exists for resubmission update
+      const existingSub = submissions.find(s => s.task_id === selectedTask.id);
+      if (existingSub) {
+        // Update existing pending submission
+        const { error: updateErr } = await supabase
+          .from("task_submissions")
+          .update({
+            file_url: storagePath,
+            submitted_at: new Date().toISOString()
+          })
+          .eq("id", existingSub.id);
+
+        if (updateErr) throw updateErr;
+        await logMemberActivity("TASK_RESUBMISSION", { task_id: selectedTask.id });
+      } else {
+        // Insert new submission
+        const { error: insertErr } = await supabase
+          .from("task_submissions")
+          .insert({
+            task_id: selectedTask.id,
+            member_id: member.id,
+            file_url: storagePath,
+            submitted_at: new Date().toISOString()
+          });
+
+        if (insertErr) throw insertErr;
+        await logMemberActivity("TASK_SUBMISSION", { task_id: selectedTask.id });
+      }
+
+      setIsSubmitModalOpen(false);
+      setFile(null);
+      setUploadStatus("");
+      await fetchInitialData();
+      alert("Syllabus assignment uploaded and submitted successfully!");
+    } catch (err: any) {
+      alert("Upload failed: " + err.message);
+      setUploadStatus("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Download Submission File dynamically via Signed URL
+  const handleDownloadFile = async (filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("task-submissions")
+        .createSignedUrl(filePath, 60);
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, "_blank");
+      }
+    } catch (err: any) {
+      alert("Failed to retrieve file download link: " + err.message);
+    }
+  };
+
+  // Helper to check submission status
+  const getTaskStatus = (taskId: string) => {
+    const sub = submissions.find(s => s.task_id === taskId);
+    if (!sub) return { status: "Pending", grade: null, record: null };
+    if (sub.grade !== null && sub.grade !== undefined) return { status: "Graded", grade: sub.grade, record: sub };
+    return { status: "Submitted", grade: null, record: sub };
+  };
+
+  const completedCount = submissions.filter(s => s.grade !== null).length;
+  const submittedCount = submissions.filter(s => s.grade === null).length;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-200 pb-12">
-      {/* ---------------------------------------------------- */}
-      {/* PAGE HEADER                                          */}
-      {/* ---------------------------------------------------- */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="secondary" size="sm">
               GAMIFIED LEARNING HUB
             </Badge>
-            <span className="text-xs text-slate-500 font-medium">Streak: {mockUser.stats.currentStreakDays} Days 🔥</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Tasks & Challenges
+            Tasks &amp; Challenges
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Complete your daily activities, finish your challenges, and move closer to becoming a Certified Facilitator.
+            Complete your coursework activities, upload deliverables, and track evaluation grades.
           </p>
         </div>
-
-        <Button variant="primary" size="md" icon={<PlayCircle className="w-4 h-4" />}>
-          Start Next Activity
+        <Button variant="outline" size="sm" onClick={fetchInitialData} icon={<RefreshCcw className="w-4 h-4" />}>
+          Refresh
         </Button>
       </div>
 
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 1: PROGRESS OVERVIEW (4 SUMMARY CARDS)        */}
-      {/* ---------------------------------------------------- */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Progress Overview
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Overall Progress (Circular SVG Ring) */}
-          <Card hoverEffect className="flex flex-col justify-between border-slate-200/90 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Overall Progress
-                </span>
-                <span className="text-3xl font-black text-slate-900">72%</span>
-                <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Level 2 Progress</p>
-              </div>
-
-              {/* Circular SVG Ring */}
-              <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                  <path
-                    className="text-slate-100"
-                    strokeWidth="4"
-                    stroke="currentColor"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                  <path
-                    className="text-[#0F4CFF] stroke-current"
-                    strokeWidth="4"
-                    strokeDasharray="72, 100"
-                    strokeLinecap="round"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                </svg>
-                <span className="absolute text-xs font-black text-[#0F4CFF]">72%</span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Card 2: Completed Tasks */}
-          <Card hoverEffect className="flex flex-col justify-between border-slate-200/90">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Completed Tasks
-                </span>
-                <span className="text-3xl font-black text-slate-900">18</span>
-                <p className="text-[11px] text-emerald-600 font-bold mt-0.5">✓ 100% Validated</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-            </div>
-          </Card>
-
-          {/* Card 3: Pending Tasks */}
-          <Card hoverEffect className="flex flex-col justify-between border-slate-200/90">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Pending Tasks
-                </span>
-                <span className="text-3xl font-black text-slate-900">5</span>
-                <p className="text-[11px] text-amber-600 font-bold mt-0.5">2 Due this week</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
-                <Clock className="w-6 h-6" />
-              </div>
-            </div>
-          </Card>
-
-          {/* Card 4: Current Streak */}
-          <Card hoverEffect className="flex flex-col justify-between border-slate-200/90 bg-gradient-to-br from-orange-50/50 to-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Current Streak
-                </span>
-                <span className="text-3xl font-black text-[#FF7A00]">12 Days 🔥</span>
-                <p className="text-[11px] text-orange-600 font-bold mt-0.5">Top 5% Consistency</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-orange-100 text-[#FF7A00] border border-orange-200 animate-pulse">
-                <Flame className="w-6 h-6" />
-              </div>
-            </div>
-          </Card>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 2: JOURNEY PROGRESS (HORIZONTAL ROADMAP)      */}
-      {/* ---------------------------------------------------- */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Journey Progress
-          </h2>
-          <p className="text-xs text-slate-500">
-            Your step-by-step facilitation certification roadmap.
-          </p>
-        </div>
-
-        <Card>
-          <div className="p-2 sm:p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 relative">
-              {roadmapSteps.map((step, idx) => {
-                const isCompleted = step.status === "completed";
-                const isCurrent = step.status === "current";
-
-                return (
-                  <div
-                    key={idx}
-                    className={clsx(
-                      "p-3.5 rounded-2xl border text-center transition-all duration-200 flex flex-col items-center justify-center space-y-2 relative",
-                      isCurrent
-                        ? "bg-gradient-to-b from-orange-50 to-white border-orange-300 shadow-md ring-2 ring-orange-400/20"
-                        : isCompleted
-                        ? "bg-blue-50/50 border-blue-200 text-slate-800"
-                        : "bg-slate-50/60 border-slate-200/60 opacity-60"
-                    )}
-                  >
-                    <div
-                      className={clsx(
-                        "w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0",
-                        isCompleted
-                          ? "bg-[#0F4CFF] text-white"
-                          : isCurrent
-                          ? "bg-[#FF7A00] text-white animate-bounce"
-                          : "bg-slate-200 text-slate-500"
-                      )}
-                    >
-                      {isCompleted ? (
-                        <CheckCircle2 className="w-5 h-5 text-white" />
-                      ) : isCurrent ? (
-                        <Flame className="w-5 h-5 text-white" />
-                      ) : (
-                        <Lock className="w-4 h-4 text-slate-400" />
-                      )}
-                    </div>
-
-                    <h4
-                      className={clsx(
-                        "text-xs font-bold tracking-tight leading-snug",
-                        isCurrent ? "text-[#FF7A00]" : "text-slate-900"
-                      )}
-                    >
-                      {step.title}
-                    </h4>
-
-                    {isCurrent && (
-                      <span className="text-[9px] font-extrabold uppercase bg-orange-100 text-[#FF7A00] px-2 py-0.5 rounded-full">
-                        ACTIVE STAGE
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </Card>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 3: ACTIVE CHALLENGES                          */}
-      {/* ---------------------------------------------------- */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">
-              Active Challenges
-            </h2>
-            <p className="text-xs text-slate-500">
-              Interactive gamified challenges to build daily practice habits.
-            </p>
-          </div>
-          <Badge variant="secondary" size="sm">
-            2 Challenges Active
-          </Badge>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Challenge Card 1 */}
-          <Card gradientBorder hoverEffect className="space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <Badge variant="primary" size="sm" dot>
-                    In Progress
-                  </Badge>
-                  <h3 className="text-lg font-bold text-slate-900 tracking-tight mt-1">
-                    30-Day Facilitator Challenge
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Daily practical workshop reflections & team exercises.
-                  </p>
-                </div>
-                <div className="p-3 rounded-2xl bg-blue-50 text-[#0F4CFF]">
-                  <Trophy className="w-6 h-6" />
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs font-semibold">
-                <span>Progress</span>
-                <span className="text-sm font-black text-slate-900">18 / 30 Days</span>
-              </div>
-
-              <ProgressBar value={60} color="primary" showValue={false} />
-            </div>
-
-            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-              <Button variant="primary" size="sm" fullWidth icon={<ArrowRight className="w-3.5 h-3.5" />}>
-                Continue Challenge
-              </Button>
-              <Button variant="outline" size="sm">
-                View Details
-              </Button>
-            </div>
-          </Card>
-
-          {/* Challenge Card 2 */}
-          <Card gradientBorder hoverEffect className="space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <Badge variant="secondary" size="sm">
-                    August Challenge
-                  </Badge>
-                  <h3 className="text-lg font-bold text-slate-900 tracking-tight mt-1">
-                    21-Day Book Reading Challenge
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Read 15 mins daily from top facilitation field guides.
-                  </p>
-                </div>
-                <div className="p-3 rounded-2xl bg-orange-50 text-[#FF7A00]">
-                  <BookOpen className="w-6 h-6" />
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs font-semibold">
-                <span>Progress</span>
-                <span className="text-sm font-black text-slate-900">10 / 21 Days</span>
-              </div>
-
-              <ProgressBar value={47} color="secondary" showValue={false} />
-            </div>
-
-            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-              <Button variant="secondary" size="sm" fullWidth icon={<ArrowRight className="w-3.5 h-3.5" />}>
-                Continue Reading
-              </Button>
-              <Button variant="outline" size="sm">
-                Reading Journal
-              </Button>
-            </div>
-          </Card>
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 5: TASK CATEGORIES (FILTER TABS UI)           */}
-      {/* ---------------------------------------------------- */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-          <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">
-              Task Categories
-            </h2>
-            <p className="text-xs text-slate-500">
-              Filter activities by area of focus.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={clsx(
-                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
-                  selectedCategory === cat
-                    ? "bg-[#0F4CFF] text-white shadow-xs"
-                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ---------------------------------------------------- */}
-        {/* SECTION 4: TODAY'S TASKS (FILTERED CARDS)            */}
-        {/* ---------------------------------------------------- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredTasks.map((task) => {
-            const isCompleted = task.status === "Completed";
-
-            return (
-              <Card
-                key={task.id}
-                hoverEffect
-                className={clsx(
-                  "flex flex-col justify-between space-y-4 transition-all",
-                  isCompleted && "bg-slate-50 border-slate-200 opacity-80"
-                )}
-              >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant={
-                            task.priority === "High"
-                              ? "danger"
-                              : task.priority === "Medium"
-                              ? "warning"
-                              : "neutral"
-                          }
-                          size="sm"
-                        >
-                          {task.priority} Priority
-                        </Badge>
-                        <Badge variant="primary" size="sm">
-                          {task.category}
-                        </Badge>
-                      </div>
-                      <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                        {task.title}
-                      </h3>
-                      {task.description && (
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                          {task.description}
-                        </p>
-                      )}
-                    </div>
-
-                    {task.points && (
-                      <span className="text-xs font-black text-[#FF7A00] bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200 shrink-0">
-                        +{task.points} pts
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-slate-500 font-semibold pt-1">
-                    {task.dueDate && (
-                      <span className="flex items-center gap-1 text-slate-600">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        Due: {task.dueDate}
-                      </span>
-                    )}
-                    <Badge
-                      variant={
-                        task.status === "Completed"
-                          ? "success"
-                          : task.status === "In Progress"
-                          ? "primary"
-                          : "warning"
-                      }
-                      size="sm"
-                      dot={task.status === "In Progress"}
-                    >
-                      {task.status}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                  <Button
-                    variant={isCompleted ? "soft" : "primary"}
-                    size="sm"
-                    fullWidth
-                    onClick={() => toggleTaskComplete(task.id)}
-                    icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                  >
-                    {isCompleted ? "Mark Pending" : "Mark Complete"}
-                  </Button>
-                  {!isCompleted && (
-                    <Button variant="outline" size="sm">
-                      Start Task
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 6: ACHIEVEMENT BADGES                        */}
-      {/* ---------------------------------------------------- */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Achievement Badges
-          </h2>
-          <p className="text-xs text-slate-500">
-            Earn badges as you hit major milestone achievements.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {mockAchievementBadges.map((badge) => (
-            <Card
-              key={badge.id}
-              hoverEffect
-              className={clsx(
-                "p-4 flex flex-col items-center justify-center text-center space-y-2 relative transition-all",
-                badge.unlocked
-                  ? "bg-white border-slate-200 shadow-xs"
-                  : "bg-slate-100/60 border-slate-200/60 opacity-50 grayscale cursor-not-allowed"
-              )}
-            >
-              <div
-                className={clsx(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-xl shadow-xs",
-                  badge.unlocked
-                    ? "bg-gradient-to-tr from-[#0F4CFF] to-blue-600 text-white"
-                    : "bg-slate-200 text-slate-400"
-                )}
-              >
-                {badge.unlocked ? <Trophy className="w-6 h-6" /> : <Lock className="w-5 h-5" />}
-              </div>
-
-              <h4 className="text-xs font-bold text-slate-900 leading-tight">
-                {badge.title}
-              </h4>
-              <p className="text-[10px] text-slate-500 line-clamp-2">
-                {badge.description}
-              </p>
-
-              {badge.unlocked ? (
-                <span className="text-[9px] font-extrabold text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded-full">
-                  UNLOCKED
-                </span>
-              ) : (
-                <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-200 px-2 py-0.5 rounded-full">
-                  LOCKED
-                </span>
-              )}
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 7: LEADERBOARD & SECTION 9: MOTIVATION CARDS  */}
-      {/* ---------------------------------------------------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Section 7: Leaderboard (2 cols) */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* OVERVIEW STATS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <Card hoverEffect className="flex flex-col justify-between border-slate-200/90">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                Monthly Leaderboard
-              </h2>
-              <p className="text-xs text-slate-500">
-                Top active community members for August 2026.
-              </p>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Completed Tasks
+              </span>
+              <span className="text-3xl font-black text-slate-900">{completedCount}</span>
+              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">✓ Officially Graded</p>
             </div>
-            <Badge variant="pro" size="sm">
-              AUGUST RANKINGS
-            </Badge>
+            <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
           </div>
+        </Card>
 
-          <Card>
-            <div className="divide-y divide-slate-100">
-              {mockLeaderboard.map((member) => (
-                <div
-                  key={member.rank}
-                  className={clsx(
-                    "p-4 flex items-center justify-between gap-4 transition-colors",
-                    member.isCurrentUser
-                      ? "bg-blue-50/70 border-l-4 border-[#0F4CFF]"
-                      : "hover:bg-slate-50/60"
-                  )}
-                >
-                  <div className="flex items-center gap-4">
-                    {/* Rank Badge / Medal */}
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-extrabold text-sm shrink-0">
-                      {member.rank === 1 ? (
-                        <span className="text-2xl" title="Gold Medal">🥇</span>
-                      ) : member.rank === 2 ? (
-                        <span className="text-2xl" title="Silver Medal">🥈</span>
-                      ) : member.rank === 3 ? (
-                        <span className="text-2xl" title="Bronze Medal">🥉</span>
-                      ) : (
-                        <span className="text-slate-500 font-bold text-xs">#{member.rank}</span>
-                      )}
-                    </div>
-
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                    />
-
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-bold text-slate-900">
-                          {member.name}
-                        </h4>
-                        {member.isCurrentUser && (
-                          <Badge variant="pro" size="sm">
-                            YOU
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-500">{member.badge}</span>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="text-base font-black text-slate-900">
-                      {member.points}
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-bold block">Points</span>
-                  </div>
-                </div>
-              ))}
+        <Card hoverEffect className="flex flex-col justify-between border-slate-200/90">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Awaiting Grading
+              </span>
+              <span className="text-3xl font-black text-slate-900">{submittedCount}</span>
+              <p className="text-[11px] text-amber-600 font-bold mt-0.5">Pending evaluation review</p>
             </div>
-          </Card>
-        </div>
-
-        {/* Section 9: Motivation Section (1 col) */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Daily Motivation
-          </h2>
-
-          <Card gradientBorder className="bg-gradient-to-br from-blue-900 to-slate-900 text-white border-0 p-6 flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
-              <Quote className="w-10 h-10 text-blue-400 opacity-80" />
-              <blockquote className="text-lg font-extrabold text-white leading-snug tracking-tight">
-                &quot;Small daily progress creates remarkable results.&quot;
-              </blockquote>
-              <p className="text-xs text-blue-200">
-                You have completed <strong className="text-white">75%</strong> of today&apos;s learning goal.
-              </p>
+            <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
+              <Clock className="w-6 h-6" />
             </div>
+          </div>
+        </Card>
 
-            <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 space-y-2">
-              <ProgressBar value={75} label="Today's Target Progress" color="secondary" showValue />
+        <Card hoverEffect className="flex flex-col justify-between border-slate-200/90">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Total Tasks Configured
+              </span>
+              <span className="text-3xl font-black text-slate-900">{tasks.length}</span>
+              <p className="text-[11px] text-slate-500 mt-0.5">Active curriculum modules</p>
             </div>
-          </Card>
-        </div>
+            <div className="p-3 rounded-2xl bg-blue-50 text-primary border border-blue-100">
+              <CheckSquare className="w-6 h-6" />
+            </div>
+          </div>
+        </Card>
       </div>
 
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 8: TASK HISTORY (TABLE)                       */}
-      {/* ---------------------------------------------------- */}
+      {/* TASKS LIST */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Task History
-          </h2>
-          <p className="text-xs text-slate-500">
-            Log of completed learning activities and earned points.
-          </p>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight">Curriculum Assignments</h2>
+          <p className="text-xs text-slate-500">Submit deliverables for active training program levels.</p>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider bg-slate-50/80">
-                    <th className="p-4">Task Name</th>
-                    <th className="p-4">Completed Date</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Points Earned</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {mockTaskHistoryTable.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-4 font-bold text-slate-900">{item.taskName}</td>
-                      <td className="p-4 text-slate-600">{item.completedDate}</td>
-                      <td className="p-4">
-                        <Badge variant="success" size="sm" dot>
-                          {item.status}
+        {loading ? (
+          <div className="py-12 text-center text-slate-500 font-medium">Loading syllabus tasks...</div>
+        ) : tasks.length === 0 ? (
+          <div className="py-12 text-center text-slate-500 border border-dashed rounded-3xl bg-white">
+            No active syllabus tasks found in your courses.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {tasks.map((task) => {
+              const { status, grade, record } = getTaskStatus(task.id);
+
+              return (
+                <Card key={task.id} className="flex flex-col justify-between space-y-4 p-5 bg-white border border-slate-200">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <Badge variant="primary" size="sm">
+                          {task.courses?.title || "Curriculum Course"}
                         </Badge>
-                      </td>
-                      <td className="p-4 text-right font-extrabold text-[#FF7A00]">
-                        +{item.pointsEarned}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                        <h3 className="text-base font-bold text-slate-900 tracking-tight mt-2">
+                          {task.title}
+                        </h3>
+                        <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                          {task.description || "No description provided."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-500 font-semibold pt-1">
+                      {task.due_date && (
+                        <span className="flex items-center gap-1 text-slate-600">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          Due: {new Date(task.due_date).toLocaleDateString()}
+                        </span>
+                      )}
+                      <Badge variant={status === "Graded" ? "success" : status === "Submitted" ? "primary" : "warning"} size="sm">
+                        {status}
+                      </Badge>
+                    </div>
+
+                    {status === "Graded" && (
+                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center text-xs text-emerald-800">
+                        <span>Evaluation Score:</span>
+                        <span className="font-black text-sm">{grade}%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                    {status === "Pending" ? (
+                      <Button variant="primary" size="sm" fullWidth onClick={() => { setSelectedTask(task); setIsSubmitModalOpen(true); }} icon={<Upload className="w-3.5 h-3.5" />}>
+                        Upload Proof Submission
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2 w-full">
+                        <Button variant="outline" size="sm" fullWidth onClick={() => handleDownloadFile(record.file_url)} icon={<Download className="w-3.5 h-3.5" />}>
+                          View Uploaded File
+                        </Button>
+                        {status === "Submitted" && (
+                          <Button variant="ghost" size="sm" onClick={() => { setSelectedTask(task); setIsSubmitModalOpen(true); }}>
+                            Resubmit
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 10: QUICK ACTIONS                             */}
-      {/* ---------------------------------------------------- */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Quick Actions
-          </h2>
-          <p className="text-xs text-slate-500">
-            Fast shortcuts to your primary activity tools.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {quickActions.map((qa, idx) => (
-            <button
-              key={idx}
-              className="p-4 rounded-2xl bg-white border border-slate-200/80 hover:border-blue-300 hover:shadow-md transition-all duration-200 flex flex-col items-center justify-center text-center space-y-2.5 group cursor-pointer"
-            >
-              <div className="p-3.5 rounded-2xl bg-slate-50 group-hover:bg-blue-50 transition-colors">
-                {qa.icon}
-              </div>
-              <span className="text-xs font-bold text-slate-800 group-hover:text-[#0F4CFF] transition-colors leading-tight">
-                {qa.label}
-              </span>
+      {/* SUBMIT DIALOG */}
+      {isSubmitModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <Card className="w-full max-w-md bg-white p-6 shadow-xl relative rounded-3xl">
+            <button className="absolute right-4 top-4 text-slate-400 hover:text-slate-600" onClick={() => setIsSubmitModalOpen(false)}>
+              <X className="w-5 h-5" />
             </button>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------------------------------------------------- */}
-      {/* SECTION 11: REMINDER TIMELINE                        */}
-      {/* ---------------------------------------------------- */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Reminder Timeline
-          </h2>
-          <p className="text-xs text-slate-500">
-            Upcoming activity deadlines and milestone dates.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {mockRemindersTimeline.map((rem) => (
-            <Card key={rem.id} hoverEffect className="p-4 flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#0F4CFF] flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-[#FF7A00] uppercase tracking-wider block">
-                  {rem.date}
-                </span>
-                <h4 className="text-sm font-bold text-slate-900 leading-tight">
-                  {rem.title}
-                </h4>
-                <p className="text-[11px] text-slate-400 font-medium">
-                  {rem.category}
+            <form onSubmit={handleSubmitTask}>
+              <CardHeader className="p-0 pb-4 border-b">
+                <CardTitle className="text-lg font-bold">Submit Assignment File</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  Upload your workbook, report PDF, or visual templates (Max 5MB). Allowed formats: PDF, DOC, DOCX, PNG, JPG.
                 </p>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 block">Select File</label>
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                    className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-[#0F4CFF] hover:file:bg-blue-100 cursor-pointer"
+                    required
+                  />
+                  {uploadStatus && (
+                    <span className="text-[10px] text-slate-500 font-medium block mt-1">
+                      {uploadStatus}
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+              <div className="flex justify-end gap-2 pt-4 border-t mt-4">
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsSubmitModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" disabled={submitting || !file}>
+                  {submitting ? "Uploading..." : "Submit File"}
+                </Button>
               </div>
-            </Card>
-          ))}
+            </form>
+          </Card>
         </div>
-      </section>
+      )}
     </div>
   );
 };

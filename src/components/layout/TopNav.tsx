@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { mockUser } from "@/data/mockData";
+import { useAuth } from "@/lib/auth";
 import { Badge } from "@/components/ui/Badge";
 import { Search, Bell, Menu, Sparkles, HelpCircle } from "lucide-react";
 
@@ -16,6 +16,8 @@ export const TopNav: React.FC<TopNavProps> = ({
   onNavigate,
   unreadNotificationsCount = 2,
 }) => {
+  const { user } = useAuth();
+
   return (
     <header className="sticky top-0 z-30 h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 lg:px-8 flex items-center justify-between transition-all">
       {/* Left side: Hamburger for mobile + Search Input */}
@@ -51,7 +53,7 @@ export const TopNav: React.FC<TopNavProps> = ({
         {/* Support Credits Pill */}
         <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200/70 rounded-full text-xs font-semibold text-[#FF7A00]">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>{mockUser.credits} Credits</span>
+          <span>Credits</span>
         </div>
 
         {/* Help / Docs icon */}
@@ -82,25 +84,23 @@ export const TopNav: React.FC<TopNavProps> = ({
           className="flex items-center gap-3 p-1 rounded-xl hover:bg-slate-100/80 transition-all text-left focus:outline-none"
         >
           <div className="relative">
-            <img
-              src={mockUser.avatar}
-              alt={mockUser.name}
-              className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-500/20"
-            />
+            <div className="w-9 h-9 rounded-full bg-blue-100 text-[#0F4CFF] font-bold text-sm flex items-center justify-center ring-2 ring-blue-500/20">
+              {user?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
+            </div>
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
           </div>
 
           <div className="hidden md:block">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold text-slate-900 leading-none">
-                {mockUser.name}
+                {user?.name || user?.email || "User"}
               </span>
               <Badge variant="pro" size="sm">
-                {mockUser.tier}
+                {user?.role?.toUpperCase() || "MEMBER"}
               </Badge>
             </div>
-            <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
-              {mockUser.role}
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+              {user?.email}
             </span>
           </div>
         </button>

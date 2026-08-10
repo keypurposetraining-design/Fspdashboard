@@ -1,18 +1,22 @@
-// src/middleware.ts
+// src/proxy.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 /**
- * Middleware protects any route under /admin.
+ * Proxy protects any route under /admin.
  * - Unauthenticated users are redirected to /login.
  * - Users with role 'admin' or 'super_admin' are allowed.
  * - All other authenticated users are redirected to /admin/unauthorized.
  */
-export async function middleware(request: NextRequest) {
-  console.log('MIDDLEWARE START', { url: request.nextUrl.pathname, cookies: request.cookies.getAll() });
+export async function proxy(request: NextRequest) {
   // Create a mutable response for potential cookie updates.
   const response = NextResponse.next();
+
+  // Exclude unauthorized route from redirects to prevent loops
+  if (request.nextUrl.pathname === "/admin/unauthorized") {
+    return response;
+  }
 
   // Initialise Supabase server client with proper cookie handling.
   const supabase = createServerClient(
@@ -32,11 +36,11 @@ export async function middleware(request: NextRequest) {
 
   // Get the current user from cookies (SSR safe).
   const { data: { user }, error: userError } = await supabase.auth.getUser();
-  console.log('MIDDLEWARE USER', { user, userError });
 
   if (userError || !user) {
-    // No session – redirect to login.
-    const loginUrl = new URL("/login", request.url);
+    // Redirect unauthenticated admin attempts to the dedicated admin login
+    const loginUrl = new URL("/login/admin", request.url);
+    loginUrl.searchParams.set("redirect", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -46,18 +50,17 @@ export async function middleware(request: NextRequest) {
     .select("role")
     .eq("id", user.id)
     .single();
-  console.log('MIDDLEWARE PROFILE', { profile, profileError });
 
   const role = profile?.role?.toString().toLowerCase();
 
   if (profileError || !role) {
     // Treat as unauthenticated if we cannot determine role.
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL("/login/admin", request.url);
     return NextResponse.redirect(loginUrl);
   }
 
   if (role === "admin" || role === "super_admin") {
-    // Allowed – return the (potentially cookie‑augmented) response.
+    // Allowed – return the response.
     return response;
   }
 

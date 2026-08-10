@@ -1,8 +1,16 @@
 import React from "react";
-import { NotificationItem } from "@/data/mockData";
 import { Badge } from "./Badge";
 import { Calendar, CheckCircle2, MessageSquare, CreditCard, BellRing } from "lucide-react";
 import { clsx } from "clsx";
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  type: string;
+  isRead: boolean;
+}
 
 export interface NotificationCardProps {
   notification: NotificationItem;

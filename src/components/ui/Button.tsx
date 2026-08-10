@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger" | "soft" | "default"; // added default
-  size?: "sm" | "md" | "lg" | "icon";
+  size?: "xs" | "sm" | "md" | "lg" | "icon";
   icon?: React.ReactNode;
   iconPosition?: "left" | "right";
   fullWidth?: boolean;
@@ -42,6 +42,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const sizeStyles = {
+    xs: "text-[10px] px-2 py-1 gap-1 rounded-lg",
     sm: "text-xs px-3 py-1.5 gap-1.5",
     md: "text-sm px-4 py-2.5 gap-2",
     lg: "text-base px-6 py-3 gap-2.5",
@@ -50,7 +51,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   if (asChild && React.isValidElement(children)) {
     // Clone child element to inherit button styles and props
-    const child = children as React.ReactElement;
+    const child = children as React.ReactElement<any>;
     const childClass = child.props.className || "";
     return React.cloneElement(child, {
       ...props,
@@ -65,7 +66,7 @@ export const Button: React.FC<ButtonProps> = ({
         )
       ),
       disabled,
-    });
+    } as any);
   }
 
   return (

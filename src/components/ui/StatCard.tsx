@@ -12,7 +12,7 @@ export interface StatCardProps {
     value: string;
     isUpward: boolean;
   };
-  color?: "blue" | "orange" | "green" | "purple";
+  color?: "blue" | "orange" | "green" | "purple" | "teal" | "red" | "yellow" | "gray";
   badge?: string;
 }
 
@@ -30,6 +30,10 @@ export const StatCard: React.FC<StatCardProps> = ({
     orange: "bg-orange-50 text-[#FF7A00] border border-orange-100",
     green: "bg-emerald-50 text-emerald-600 border border-emerald-100",
     purple: "bg-purple-50 text-purple-600 border border-purple-100",
+    teal: "bg-teal-50 text-teal-600 border border-teal-100",
+    red: "bg-rose-50 text-rose-600 border border-rose-100",
+    yellow: "bg-amber-50 text-amber-600 border border-amber-100",
+    gray: "bg-slate-50 text-slate-600 border border-slate-100",
   };
 
   return (

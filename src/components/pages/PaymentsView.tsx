@@ -1,135 +1,226 @@
-import React from "react";
-import { mockInvoices } from "@/data/mockData";
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { CreditCard, Download, ShieldCheck, FileText, ArrowRight, ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { CreditCard, Download, FileText, RefreshCcw, Send, Check } from "lucide-react";
+import { logMemberActivity } from "@/lib/activity-log";
 
 export const PaymentsView: React.FC = () => {
+  const { user } = useAuth();
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+
+  const [member, setMember] = useState<any>(null);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [membership, setMembership] = useState<any>(null);
+
+  // Renewal Form
+  const [amount, setAmount] = useState("3000");
+  const [submitting, setSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [user]);
+
+  async function fetchInitialData() {
+    if (!user) return;
+    try {
+      setLoading(true);
+      // Fetch member
+      const { data: memberData, error: memberErr } = await supabase
+        .from("members")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (memberErr) throw memberErr;
+      if (memberData) {
+        setMember(memberData);
+
+        // Fetch payments
+        const { data: payData, error: payErr } = await supabase
+          .from("payments")
+          .select("*")
+          .eq("member_id", memberData.id)
+          .order("payment_date", { ascending: false });
+        if (payErr) throw payErr;
+        setPayments(payData || []);
+
+        // Fetch membership
+        const { data: memData } = await supabase
+          .from("memberships")
+          .select("*")
+          .eq("member_id", memberData.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setMembership(memData);
+
+        await logMemberActivity("PAYMENT_VIEW");
+      }
+    } catch (err: any) {
+      console.error("Error fetching payments history:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleRequestRenewal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!member) return;
+
+    try {
+      setSubmitting(true);
+      setSuccessMsg("");
+
+      // Insert pending payment record
+      const { error } = await supabase
+        .from("payments")
+        .insert({
+          member_id: member.id,
+          membership_id: membership?.id || null,
+          amount: parseFloat(amount),
+          currency: "INR",
+          status: "pending",
+          payment_date: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      await logMemberActivity("PAYMENT_RENEWAL_REQUEST", { amount: parseFloat(amount) });
+      setSuccessMsg("Renewal receipt submitted! Administrative team will reconcile shortly.");
+      await fetchInitialData();
+    } catch (err: any) {
+      alert("Error submitting renewal: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Badge variant="primary" size="sm">
-              BILLING & INVOICES
-            </Badge>
-          </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Payments & Subscription
+            Payments &amp; Subscription
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            View your payment history, download official tax receipts, and manage billing methods.
+            Submit bank transfer receipts for membership renewal verification, and view previous transactions.
           </p>
         </div>
-
-        <Button variant="outline" size="md" icon={<CreditCard className="w-4 h-4" />}>
-          Update Payment Method
+        <Button variant="outline" size="sm" onClick={fetchInitialData} icon={<RefreshCcw className="w-4 h-4" />}>
+          Refresh
         </Button>
       </div>
 
-      {/* Overview Cards (Payment Method + Next Billing) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Payment Method Card */}
-        <Card hoverEffect>
+        {/* Submit Bank Receipt */}
+        <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-[#0F4CFF]" />
-              Default Payment Method
+              Submit Renewal Payment Proof
             </CardTitle>
-            <Badge variant="success" size="sm">
-              VERIFIED
-            </Badge>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200/80">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-7 rounded-md bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
-                  VISA
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">
-                    Visa ending in 4242
-                  </h4>
-                  <p className="text-xs text-slate-500">Expires 12/2028</p>
-                </div>
+          <CardContent>
+            <form onSubmit={handleRequestRenewal} className="space-y-4">
+              <Input
+                label="Amount Paid (INR)"
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                required
+              />
+              <div className="text-xs text-slate-500 font-medium leading-relaxed">
+                Bank Transfer Details:<br />
+                <strong>Bank Name:</strong> Guild Facilitators Bank of India<br />
+                <strong>Account Number:</strong> 9876543210<br />
+                <strong>IFSC Code:</strong> GFBI0001928
               </div>
-              <Button variant="ghost" size="sm">
-                Edit
+
+              {successMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-xs flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  {successMsg}
+                </div>
+              )}
+
+              <Button type="submit" size="sm" disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit Receipt Proof"}
               </Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
 
-        {/* Next Billing Summary */}
-        <Card hoverEffect>
+        {/* Subscription Info */}
+        <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <FileText className="w-5 h-5 text-[#FF7A00]" />
-              Next Billing Date
+              Subscription Status
             </CardTitle>
-            <Badge variant="primary" size="sm">
-              AUTO-RENEW
-            </Badge>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900">$99.00</span>
-              <span className="text-xs text-slate-500 font-medium">/ month</span>
+          <CardContent className="space-y-4 text-sm font-medium">
+            <div>
+              <span className="text-xs text-slate-400 block">MEMBERSHIP PLAN</span>
+              <span className="text-slate-800 block text-lg font-bold">Annual Guild Access</span>
             </div>
-            <p className="text-xs text-slate-600">
-              Your subscription automatically renews on <strong className="text-slate-900">Sept 15, 2026</strong>.
-            </p>
+            <div>
+              <span className="text-xs text-slate-400 block">CURRENT STATUS</span>
+              <span className="mt-1 block">
+                <Badge variant={membership?.status === "active" ? "success" : "warning"}>
+                  {membership?.status || "Pending Verification"}
+                </Badge>
+              </span>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Invoice History Data Table */}
+      {/* Transaction History */}
       <Card>
         <CardHeader>
-          <CardTitle>Invoice History & Receipts</CardTitle>
-          <Button variant="ghost" size="sm" icon={<Download className="w-4 h-4" />}>
-            Download All (ZIP)
-          </Button>
+          <CardTitle>Receipts &amp; Payments History</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider bg-slate-50/80">
-                  <th className="p-3.5 rounded-l-xl">Invoice ID</th>
-                  <th className="p-3.5">Date</th>
-                  <th className="p-3.5">Description</th>
-                  <th className="p-3.5">Amount</th>
-                  <th className="p-3.5">Status</th>
-                  <th className="p-3.5 rounded-r-xl text-right">Receipt</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {mockInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5 font-bold text-[#0F4CFF]">
-                      {inv.invoiceNumber}
-                    </td>
-                    <td className="p-3.5 text-slate-600">{inv.date}</td>
-                    <td className="p-3.5 text-slate-800">{inv.description}</td>
-                    <td className="p-3.5 font-bold text-slate-900">{inv.amount}</td>
-                    <td className="p-3.5">
-                      <Badge variant="success" size="sm" dot>
-                        {inv.status}
-                      </Badge>
-                    </td>
-                    <td className="p-3.5 text-right">
-                      <Button variant="ghost" size="sm" icon={<Download className="w-3.5 h-3.5" />}>
-                        PDF
-                      </Button>
-                    </td>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="py-6 text-center text-slate-500">Loading ledgers...</div>
+          ) : payments.length === 0 ? (
+            <div className="py-6 text-center text-slate-500">No payment receipts logged.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider bg-slate-50/80">
+                    <th className="p-3.5 rounded-l-xl">Transaction ID</th>
+                    <th className="p-3.5">Date</th>
+                    <th className="p-3.5">Amount</th>
+                    <th className="p-3.5 rounded-r-xl text-right">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {payments.map((pay) => (
+                    <tr key={pay.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3.5 font-mono text-[#0F4CFF] truncate max-w-xs">{pay.id}</td>
+                      <td className="p-3.5 text-slate-600">{new Date(pay.payment_date).toLocaleDateString()}</td>
+                      <td className="p-3.5 font-bold text-slate-900">{pay.amount} {pay.currency}</td>
+                      <td className="p-3.5 text-right">
+                        <Badge variant={pay.status === "succeeded" ? "success" : pay.status === "pending" ? "warning" : "danger"} size="sm">
+                          {pay.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

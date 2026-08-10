@@ -20,7 +20,7 @@ export const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 );
 Avatar.displayName = "Avatar";
 
-export interface AvatarImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+export interface AvatarImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'width' | 'height' | 'src' | 'alt'> {
   src: string;
   alt: string;
   className?: string;

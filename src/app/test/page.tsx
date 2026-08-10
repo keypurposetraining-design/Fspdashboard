@@ -16,9 +16,9 @@ export default function TestPage() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const { data, error } = await supabase.from<User>('users').select('id, email, name');
+        const { data, error } = await supabase.from('users').select('id, email, name');
         if (error) throw error;
-        setUsers(data ?? []);
+        setUsers((data as any) ?? []);
       } catch (err: any) {
         setError(err.message);
       } finally {

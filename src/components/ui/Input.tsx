@@ -1,15 +1,17 @@
 // src/components/ui/Input.tsx
 import React from "react";
-import { cn } from "@/lib/utils"; // utility to combine class names, create if missing
+import { cn } from "@/lib/utils";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   className?: string;
+  label?: string;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type = "text", ...props }, ref) => {
-    return (
+  ({ className, type = "text", label, id, ...props }, ref) => {
+    const inputEl = (
       <input
+        id={id}
         type={type}
         ref={ref}
         className={cn(
@@ -20,6 +22,19 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {...props}
       />
     );
+
+    if (label) {
+      return (
+        <div className="space-y-1">
+          <label htmlFor={id} className="block text-sm font-medium text-slate-700">
+            {label}
+          </label>
+          {inputEl}
+        </div>
+      );
+    }
+
+    return inputEl;
   }
 );
 Input.displayName = "Input";

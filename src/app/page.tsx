@@ -5,10 +5,11 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
 import { LogoutModal } from "@/components/layout/LogoutModal";
 
-// Import all 10 Page Views
+// Import all 12 Page Views
 import { DashboardView } from "@/components/pages/DashboardView";
 import { MembershipView } from "@/components/pages/MembershipView";
 import { TasksView } from "@/components/pages/TasksView";
+import { CoursesView } from "@/components/pages/CoursesView";
 import { EventsView } from "@/components/pages/EventsView";
 import { PaymentsView } from "@/components/pages/PaymentsView";
 import { CertificatesView } from "@/components/pages/CertificatesView";
@@ -16,6 +17,7 @@ import { CommunityView } from "@/components/pages/CommunityView";
 import { NotificationsView } from "@/components/pages/NotificationsView";
 import { ProfileView } from "@/components/pages/ProfileView";
 import { SettingsView } from "@/components/pages/SettingsView";
+import { ResourcesView } from "@/components/pages/ResourcesView";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
@@ -36,6 +38,8 @@ export default function Home() {
         return <DashboardView onNavigate={handleSelectTab} />;
       case "membership":
         return <MembershipView />;
+      case "courses":
+        return <CoursesView />;
       case "tasks":
         return <TasksView />;
       case "events":
@@ -52,6 +56,8 @@ export default function Home() {
         return <ProfileView />;
       case "settings":
         return <SettingsView />;
+      case "resources":
+        return <ResourcesView />;
       default:
         return <DashboardView onNavigate={handleSelectTab} />;
     }

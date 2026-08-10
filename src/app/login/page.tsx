@@ -123,7 +123,7 @@ const LoginPage = () => {
           </form>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Link href="/admin/login" className="text-sm text-blue-600 hover:underline">
+          <Link href="/login/admin" className="text-sm text-blue-600 hover:underline">
             Go to Admin Login
           </Link>
         </CardFooter>

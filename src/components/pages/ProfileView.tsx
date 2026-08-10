@@ -1,11 +1,60 @@
-import React from "react";
-import { mockUser } from "@/data/mockData";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { User, MapPin, Mail, Calendar, Edit3, Award, Sparkles, CheckCircle2, ShieldCheck, ExternalLink } from "lucide-react";
+import { logMemberActivity } from "@/lib/activity-log";
 
 export const ProfileView: React.FC = () => {
+  const { user } = useAuth();
+  const supabase = createClient();
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user) return;
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("members")
+          .select(`
+            id,
+            first_name,
+            last_name,
+            phone,
+            address,
+            created_at,
+            users (
+              email,
+              name,
+              role
+            )
+          `)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (data) {
+          setProfile(data);
+        }
+        await logMemberActivity("PROFILE_VIEW");
+      } catch (err) {
+        console.error("Error loading profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProfile();
+  }, [user]);
+
+  const name = profile ? `${profile.first_name || ""} ${profile.last_name || ""}` : (user?.name || "FSP Member");
+  const email = profile?.users?.email || user?.email || "member@fsp.org";
+  const phone = profile?.phone || "—";
+  const address = profile?.address || "—";
+  const role = profile?.users?.role || "member";
+  const createdDate = profile ? new Date(profile.created_at).toLocaleDateString() : "New Member";
+
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Profile Header Banner */}
@@ -19,49 +68,43 @@ export const ProfileView: React.FC = () => {
         <div className="p-6 pt-0 bg-white relative">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-16 mb-4">
             <div className="flex items-end gap-4">
-              <img
-                src={mockUser.avatar}
-                alt={mockUser.name}
-                className="w-28 h-28 rounded-3xl object-cover ring-4 ring-white shadow-xl bg-white"
-              />
+              <div className="w-28 h-28 rounded-3xl ring-4 ring-white shadow-xl bg-gradient-to-tr from-slate-200 to-slate-100 flex items-center justify-center text-slate-400 font-bold text-3xl">
+                {name.charAt(0)}
+              </div>
               <div className="mb-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                    {mockUser.name}
+                    {name}
                   </h1>
                   <Badge variant="pro" size="sm">
-                    {mockUser.tier}
+                    {role === "admin" || role === "super_admin" ? "Staff" : "Member"}
                   </Badge>
                 </div>
                 <p className="text-sm font-semibold text-slate-600">
-                  {mockUser.role}
+                  {role}
                 </p>
               </div>
             </div>
-
-            <Button variant="outline" size="sm" icon={<Edit3 className="w-4 h-4" />}>
-              Edit Profile
-            </Button>
           </div>
 
           <p className="text-xs text-slate-600 max-w-2xl leading-relaxed mb-4">
-            {mockUser.bio}
+            Professional facilitator member of the Facilitator Support Program guild.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500 border-t border-slate-100 pt-4">
             <span className="flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-slate-400" />
-              {mockUser.location}
+              {address}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1.5">
               <Mail className="w-4 h-4 text-slate-400" />
-              {mockUser.email}
+              {email}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-slate-400" />
-              Joined {mockUser.memberSince}
+              Joined {createdDate}
             </span>
           </div>
         </div>
@@ -78,28 +121,12 @@ export const ProfileView: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/70">
-                <span className="text-xs text-slate-600 font-semibold">Hours Facilitated</span>
-                <span className="text-sm font-black text-slate-900">{mockUser.stats.hoursFacilitated} hrs</span>
+                <span className="text-xs text-slate-600 font-semibold">Phone</span>
+                <span className="text-sm font-black text-slate-900">{phone}</span>
               </div>
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/70">
-                <span className="text-xs text-slate-600 font-semibold">Community Rank</span>
-                <span className="text-xs font-bold text-[#0F4CFF]">{mockUser.stats.communityRank}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Skills & Expertise */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Expertise & Core Competencies</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {mockUser.skills.map((skill, idx) => (
-                  <Badge key={idx} variant="primary" size="md">
-                    {skill}
-                  </Badge>
-                ))}
+                <span className="text-xs text-slate-600 font-semibold">Status</span>
+                <span className="text-xs font-bold text-[#0F4CFF]">Active Account</span>
               </div>
             </CardContent>
           </Card>
@@ -111,7 +138,7 @@ export const ProfileView: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Award className="w-5 h-5 text-[#FF7A00]" />
-                Recent Milestones & Achievements
+                Accreditation & Milestones
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -121,24 +148,10 @@ export const ProfileView: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">
-                    Earned Advanced Executive Facilitation Certification
+                    FSP Account Active
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Verified by FSP Guild Board on June 14, 2026.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 flex items-start gap-4">
-                <div className="p-2.5 rounded-xl bg-blue-100 text-[#0F4CFF] shrink-0">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">
-                    Top Community Contributor Award Q2 2026
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Recognized for authoring 5 top-rated workshop energizer guides.
+                    Verified profile synced with Supabase authentication.
                   </p>
                 </div>
               </div>
