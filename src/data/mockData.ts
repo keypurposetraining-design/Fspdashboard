@@ -1326,8 +1326,8 @@ export const mockAccessControls: AccessControlItem[] = [
 export const mockSystemSettings = {
   branding: {
     logoUrl: "https://via.placeholder.com/150",
-    primaryColor: "#1E3A8A",
-    secondaryColor: "#F59E0B",
+    primaryColor: "#1D3A8F",
+    secondaryColor: "#F5A623",
     accentColor: "#10B981"
   },
   integrations: [

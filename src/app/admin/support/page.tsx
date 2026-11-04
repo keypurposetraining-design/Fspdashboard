@@ -9,7 +9,7 @@ export default function AdminSupport() {
     <div className="space-y-6 max-w-4xl">
       {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">FSP Guild Support Desk</h1>
+        <h1 className="fsp-dot text-2xl font-black text-slate-900 tracking-tight">FSP Guild Support Desk</h1>
         <p className="text-sm text-slate-500 font-medium">Get in touch with the core development team or administrative office for server assistance.</p>
       </div>
 
@@ -19,24 +19,24 @@ export default function AdminSupport() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-[#0F4CFF]" />
+                <HelpCircle className="w-5 h-5 text-[var(--brand-navy)]" />
                 Primary Support Channels
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-3 items-start p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
-                <Mail className="w-5 h-5 text-[#0F4CFF] shrink-0 mt-0.5" />
+              <div className="flex gap-3 items-start p-3 bg-[var(--brand-navy-soft)] rounded-xl border border-[var(--brand-navy-border)]/50">
+                <Mail className="w-5 h-5 text-[var(--brand-navy)] shrink-0 mt-0.5" />
                 <div>
                   <span className="font-semibold text-sm text-slate-800">Email Support Helpline</span>
-                  <a href="mailto:support@fsp-guild.org" className="text-xs text-blue-600 hover:underline block mt-0.5">
+                  <a href="mailto:support@fsp-guild.org" className="text-xs text-[var(--brand-navy)] hover:underline block mt-0.5">
                     support@fsp-guild.org
                   </a>
                   <p className="text-[11px] text-slate-500 mt-1">Average response time: 2-4 business hours.</p>
                 </div>
               </div>
 
-              <div className="flex gap-3 items-start p-3 bg-orange-50/50 rounded-xl border border-orange-100/50">
-                <MessageSquare className="w-5 h-5 text-[#FF7A00] shrink-0 mt-0.5" />
+              <div className="flex gap-3 items-start p-3 bg-[var(--brand-gold-light)] rounded-xl border border-[var(--brand-gold-border)]/50">
+                <MessageSquare className="w-5 h-5 text-[var(--brand-gold)] shrink-0 mt-0.5" />
                 <div>
                   <span className="font-semibold text-sm text-slate-800">Slack Dev Guild Channels</span>
                   <span className="text-xs text-slate-600 block mt-0.5">#fsp-dashboard-help</span>
@@ -74,11 +74,11 @@ export default function AdminSupport() {
                 </div>
                 <div className="flex justify-between border-b pb-2 text-xs">
                   <span>Platform Maintenance Hours</span>
-                  <span className="font-semibold text-amber-600">Sundays, 3:00-5:00 AM EST</span>
+                  <span className="font-semibold text-[var(--warning)]">Sundays, 3:00-5:00 AM EST</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span>Database Mirroring Replicas</span>
-                  <span className="font-semibold text-blue-600">Sync Active</span>
+                  <span className="font-semibold text-[var(--brand-navy)]">Sync Active</span>
                 </div>
               </div>
             </CardContent>

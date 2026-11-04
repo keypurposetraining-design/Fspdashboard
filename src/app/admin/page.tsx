@@ -1,5 +1,2 @@
-import { redirect } from "next/navigation";
-
-export default function AdminRoot() {
-  redirect("/admin/dashboard");
-}
+import { UnifiedDashboard } from "@/components/member/UnifiedDashboard";
+export default function AdminPage() { return <UnifiedDashboard />; }

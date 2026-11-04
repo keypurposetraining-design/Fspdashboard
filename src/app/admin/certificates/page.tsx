@@ -143,7 +143,7 @@ export default function AdminCertificates() {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Accreditation Certificates</h1>
+          <h1 className="fsp-dot text-2xl font-black text-slate-900 tracking-tight">Accreditation Certificates</h1>
           <p className="text-sm text-slate-500 font-medium">Issue formal graduation certificates to members completing training levels.</p>
         </div>
         <Button size="sm" onClick={() => { setIsIssueModalOpen(true); }} icon={<Plus className="w-4 h-4" />}>
@@ -183,7 +183,7 @@ export default function AdminCertificates() {
                 { header: "Accredited Course", accessor: "course", render: (row) => row.courses?.title || "N/A" },
                 { header: "Issued Date", accessor: "issued_at", render: (row) => new Date(row.issued_at).toLocaleDateString() },
                 { header: "Verification URL", accessor: "certificate_url", render: (row) => (
-                  <a href={row.certificate_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-xs block">
+                  <a href={row.certificate_url} target="_blank" rel="noopener noreferrer" className="text-[var(--brand-navy)] hover:underline truncate max-w-xs block">
                     {row.certificate_url}
                   </a>
                 ) },

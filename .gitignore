@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local dev server log
 dev_server.log
+
+# Share configuration names without local credentials
+!.env.example

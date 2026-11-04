@@ -16,11 +16,13 @@ import {
   X
 } from "lucide-react";
 import { logMemberActivity } from "@/lib/activity-log";
+import { toDataError } from "@/lib/data/errors";
 
 export const TasksView: React.FC = () => {
   const { user } = useAuth();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [member, setMember] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -40,7 +42,7 @@ export const TasksView: React.FC = () => {
   async function fetchInitialData() {
     if (!user) return;
     try {
-      setLoading(true);
+      setLoading(true); setLoadError(null);
       // Fetch member profile
       const { data: memberData, error: memberErr } = await supabase
         .from("members")
@@ -70,7 +72,8 @@ export const TasksView: React.FC = () => {
         await logMemberActivity("TASK_VIEW");
       }
     } catch (err: any) {
-      console.error("Error fetching tasks/submissions:", err.message);
+      // toDataError logs the raw error for developers; no second console.error.
+      setLoadError(toDataError(err, "tasks").message);
     } finally {
       setLoading(false);
     }
@@ -211,10 +214,10 @@ export const TasksView: React.FC = () => {
               GAMIFIED LEARNING HUB
             </Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="fsp-dot text-2xl sm:text-3xl font-black text-[var(--foreground)] tracking-tight">
             Tasks &amp; Challenges
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-[var(--muted)] mt-1">
             Complete your coursework activities, upload deliverables, and track evaluation grades.
           </p>
         </div>
@@ -225,46 +228,46 @@ export const TasksView: React.FC = () => {
 
       {/* OVERVIEW STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <Card hoverEffect className="flex flex-col justify-between border-slate-200/90">
+        <Card hoverEffect className="flex flex-col justify-between border-[var(--card-border)]">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider block mb-1">
                 Completed Tasks
               </span>
-              <span className="text-3xl font-black text-slate-900">{completedCount}</span>
-              <p className="text-[11px] text-emerald-600 font-bold mt-0.5">✓ Officially Graded</p>
+              <span className="text-3xl font-black text-[var(--foreground)]">{completedCount}</span>
+              <p className="text-[11px] text-[var(--success)] font-bold mt-0.5">✓ Officially Graded</p>
             </div>
-            <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+            <div className="p-3 rounded-2xl bg-[var(--success-light)] text-[var(--success)] border border-[var(--success-border)]/60">
               <CheckCircle2 className="w-6 h-6" />
             </div>
           </div>
         </Card>
 
-        <Card hoverEffect className="flex flex-col justify-between border-slate-200/90">
+        <Card hoverEffect className="flex flex-col justify-between border-[var(--card-border)]">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider block mb-1">
                 Awaiting Grading
               </span>
               <span className="text-3xl font-black text-slate-900">{submittedCount}</span>
-              <p className="text-[11px] text-amber-600 font-bold mt-0.5">Pending evaluation review</p>
+              <p className="text-[11px] text-[var(--warning)] font-bold mt-0.5">Pending evaluation review</p>
             </div>
-            <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
+            <div className="p-3 rounded-2xl bg-[var(--warning-light)] text-[var(--warning)] border border-[var(--warning-border)]/60">
               <Clock className="w-6 h-6" />
             </div>
           </div>
         </Card>
 
-        <Card hoverEffect className="flex flex-col justify-between border-slate-200/90">
+        <Card hoverEffect className="flex flex-col justify-between border-[var(--card-border)]">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              <span className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider block mb-1">
                 Total Tasks Configured
               </span>
               <span className="text-3xl font-black text-slate-900">{tasks.length}</span>
-              <p className="text-[11px] text-slate-500 mt-0.5">Active curriculum modules</p>
+              <p className="text-[11px] text-[var(--muted)] mt-0.5">Active curriculum modules</p>
             </div>
-            <div className="p-3 rounded-2xl bg-blue-50 text-primary border border-blue-100">
+            <div className="p-3 rounded-2xl bg-[var(--brand-navy-soft)] text-[var(--brand-navy)] border border-[var(--brand-navy)]/20">
               <CheckSquare className="w-6 h-6" />
             </div>
           </div>
@@ -274,14 +277,15 @@ export const TasksView: React.FC = () => {
       {/* TASKS LIST */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">Curriculum Assignments</h2>
-          <p className="text-xs text-slate-500">Submit deliverables for active training program levels.</p>
+          <h2 className="fsp-dot text-xl font-black text-[var(--foreground)] tracking-tight">Curriculum Assignments</h2>
+          <p className="text-xs text-[var(--muted)]">Submit deliverables for active training program levels.</p>
         </div>
 
+        {loadError && <div role="alert" className="mb-4 rounded-2xl border border-[var(--danger-border)] bg-[var(--danger-light)] p-4 text-sm font-medium">{loadError}</div>}
         {loading ? (
-          <div className="py-12 text-center text-slate-500 font-medium">Loading syllabus tasks...</div>
+          <div className="py-12 text-center text-[var(--muted)] font-medium">Loading syllabus tasks...</div>
         ) : tasks.length === 0 ? (
-          <div className="py-12 text-center text-slate-500 border border-dashed rounded-3xl bg-white">
+          <div className="py-12 text-center text-[var(--muted)] border border-dashed rounded-3xl bg-[var(--card-bg)]">
             No active syllabus tasks found in your courses.
           </div>
         ) : (
@@ -290,7 +294,7 @@ export const TasksView: React.FC = () => {
               const { status, grade, record } = getTaskStatus(task.id);
 
               return (
-                <Card key={task.id} className="flex flex-col justify-between space-y-4 p-5 bg-white border border-slate-200">
+                <Card key={task.id} className="flex flex-col justify-between space-y-4 p-5 bg-[var(--card-bg)] border border-[var(--card-border)]">
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -300,15 +304,15 @@ export const TasksView: React.FC = () => {
                         <h3 className="text-base font-bold text-slate-900 tracking-tight mt-2">
                           {task.title}
                         </h3>
-                        <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                        <p className="text-xs text-[var(--muted)] leading-relaxed mt-1">
                           {task.description || "No description provided."}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-500 font-semibold pt-1">
+                    <div className="flex items-center justify-between text-xs text-[var(--muted)] font-semibold pt-1">
                       {task.due_date && (
-                        <span className="flex items-center gap-1 text-slate-600">
+                        <span className="flex items-center gap-1 text-[var(--muted)]">
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                           Due: {new Date(task.due_date).toLocaleDateString()}
                         </span>
@@ -319,7 +323,7 @@ export const TasksView: React.FC = () => {
                     </div>
 
                     {status === "Graded" && (
-                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center text-xs text-emerald-800">
+                      <div className="p-3 bg-[var(--success-light)] rounded-xl border border-[var(--success-border)]/60 flex justify-between items-center text-xs text-[var(--success)]">
                         <span>Evaluation Score:</span>
                         <span className="font-black text-sm">{grade}%</span>
                       </div>
@@ -354,35 +358,35 @@ export const TasksView: React.FC = () => {
       {/* SUBMIT DIALOG */}
       {isSubmitModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
-          <Card className="w-full max-w-md bg-white p-6 shadow-xl relative rounded-3xl">
-            <button className="absolute right-4 top-4 text-slate-400 hover:text-slate-600" onClick={() => setIsSubmitModalOpen(false)}>
+          <Card className="w-full max-w-md bg-[var(--card-bg)] p-6 shadow-xl relative rounded-3xl border border-[var(--card-border)]">
+            <button className="absolute right-4 top-4 text-[var(--muted)] hover:text-[var(--foreground)]" onClick={() => setIsSubmitModalOpen(false)}>
               <X className="w-5 h-5" />
             </button>
             <form onSubmit={handleSubmitTask}>
-              <CardHeader className="p-0 pb-4 border-b">
-                <CardTitle className="text-lg font-bold">Submit Assignment File</CardTitle>
+              <CardHeader className="p-0 pb-4 border-b border-[var(--card-border)]">
+                <CardTitle className="text-lg font-bold text-[var(--foreground)]">Submit Assignment File</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-4">
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                <p className="text-xs text-[var(--muted)] font-medium leading-relaxed">
                   Upload your workbook, report PDF, or visual templates (Max 5MB). Allowed formats: PDF, DOC, DOCX, PNG, JPG.
                 </p>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 block">Select File</label>
+                  <label className="text-xs font-bold text-[var(--foreground)] block">Select File</label>
                   <input
                     type="file"
                     onChange={handleFileChange}
                     accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                    className="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-[#0F4CFF] hover:file:bg-blue-100 cursor-pointer"
+                    className="w-full text-xs text-[var(--muted)] file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[var(--brand-navy-light)] file:text-[var(--brand-navy)] hover:file:bg-[var(--brand-navy-soft)] cursor-pointer"
                     required
                   />
                   {uploadStatus && (
-                    <span className="text-[10px] text-slate-500 font-medium block mt-1">
+                    <span className="text-[10px] text-[var(--muted)] font-medium block mt-1">
                       {uploadStatus}
                     </span>
                   )}
                 </div>
               </CardContent>
-              <div className="flex justify-end gap-2 pt-4 border-t mt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t border-[var(--card-border)] mt-4">
                 <Button type="button" variant="outline" size="sm" onClick={() => setIsSubmitModalOpen(false)}>
                   Cancel
                 </Button>

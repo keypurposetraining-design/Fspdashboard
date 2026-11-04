@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toDataError } from "@/lib/data/errors";
 import { useAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -13,6 +14,7 @@ export const ResourcesView: React.FC = () => {
   const { user } = useAuth();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [resources, setResources] = useState<any[]>([]);
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export const ResourcesView: React.FC = () => {
 
   async function fetchResources() {
     try {
-      setLoading(true);
+      setLoading(true); setLoadError(null);
       const { data, error } = await supabase
         .from("resources")
         .select("*, courses(title)");
@@ -31,7 +33,7 @@ export const ResourcesView: React.FC = () => {
 
       await logMemberActivity("RESOURCE_VIEW");
     } catch (err: any) {
-      console.error("Error loading resources:", err.message);
+      setLoadError(toDataError(err, "resources").message);
     } finally {
       setLoading(false);
     }
@@ -47,10 +49,10 @@ export const ResourcesView: React.FC = () => {
               RESOURCE LIBRARY
             </Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="fsp-dot text-2xl sm:text-3xl font-black text-[var(--foreground)] tracking-tight">
             Reference Files &amp; Tools
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-[var(--muted)] mt-1">
             Download handbooks, framework PDFs, and reference toolkits to support your facilitation coursework.
           </p>
         </div>
@@ -59,19 +61,20 @@ export const ResourcesView: React.FC = () => {
         </Button>
       </div>
 
+      {loadError && <div role="alert" className="mb-4 rounded-2xl border border-[var(--danger-border)] bg-[var(--danger-light)] p-4 text-sm font-medium">{loadError}</div>}
       {loading ? (
-        <div className="py-12 text-center text-slate-500 font-medium">Loading library documents...</div>
+        <div className="py-12 text-center text-[var(--muted)] font-medium">Loading library documents...</div>
       ) : resources.length === 0 ? (
-        <div className="py-12 text-center text-slate-500 border border-dashed rounded-3xl bg-white">
+        <div className="py-12 text-center text-[var(--muted)] border border-dashed rounded-3xl bg-[var(--card-bg)]">
           No training guides or PDFs available yet.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {resources.map((res) => (
-            <Card key={res.id} className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:border-blue-200 hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+            <Card key={res.id} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 hover:border-[var(--brand-navy-light)] hover:shadow-md transition-all duration-200 flex flex-col justify-between">
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[var(--brand-gold)] to-[var(--brand-gold-hover)] text-white flex items-center justify-center shrink-0 shadow-md">
                     <FileText className="w-6 h-6" />
                   </div>
                   <Badge variant="secondary" size="sm">
@@ -80,16 +83,16 @@ export const ResourcesView: React.FC = () => {
                 </div>
 
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 leading-snug">
+                  <h3 className="text-base font-bold text-[var(--foreground)] leading-snug">
                     {res.title}
                   </h3>
-                  <p className="text-xs text-slate-500 leading-relaxed mt-2">
+                  <p className="text-xs text-[var(--muted)] leading-relaxed mt-2">
                     {res.description || "No description provided."}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-4 border-t border-slate-100 mt-4">
+              <div className="flex items-center gap-2 pt-4 border-t border-[var(--card-border)] mt-4">
                 <Button variant="primary" size="sm" fullWidth onClick={() => {
                   logMemberActivity("RESOURCE_DOWNLOAD", { resource_id: res.id });
                   window.open(res.file_url, "_blank");

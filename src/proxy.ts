@@ -2,23 +2,40 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { roleHome } from "@/lib/auth-redirect";
 
 /**
- * Proxy protects any route under /admin.
- * - Unauthenticated users are redirected to /login.
- * - Users with role 'admin' or 'super_admin' are allowed.
- * - All other authenticated users are redirected to /admin/unauthorized.
+ * Server-side route protection (the UI hides links, but this is the gate):
+ * - /login, /login/admin, /auth/callback: public.
+ * - /super-admin/*: super_admin only.
+ * - /admin/*: admin or super_admin (except /admin/unauthorized).
+ * - everything else in the app: any signed-in, active account.
+ * The role is read from public.users (never from user metadata). Data access
+ * is enforced again by RLS and the SECURITY DEFINER RPCs.
  */
-export async function proxy(request: NextRequest) {
-  // Create a mutable response for potential cookie updates.
-  const response = NextResponse.next();
+const PUBLIC_PATHS = [
+  "/login",
+  "/login/admin",
+  "/auth/callback",
+  "/signup",
+  "/forgot-password",
+  // Reached from the emailed recovery link, before a full session exists.
+  "/reset-password",
+];
 
-  // Exclude unauthorized route from redirects to prevent loops
-  if (request.nextUrl.pathname === "/admin/unauthorized") {
+export async function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+  let response = NextResponse.next({ request });
+  const redirect = (url: URL) => {
+    const result = NextResponse.redirect(url);
+    response.cookies.getAll().forEach(cookie => result.cookies.set(cookie));
+    return result;
+  };
+
+  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return response;
   }
 
-  // Initialise Supabase server client with proper cookie handling.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
@@ -26,6 +43,8 @@ export async function proxy(request: NextRequest) {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -34,41 +53,65 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Get the current user from cookies (SSR safe).
+  const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isSuperAdminPath = pathname === "/super-admin" || pathname.startsWith("/super-admin/");
+
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    // Redirect unauthenticated admin attempts to the dedicated admin login
-    const loginUrl = new URL("/login/admin", request.url);
-    loginUrl.searchParams.set("redirect", request.nextUrl.pathname + request.nextUrl.search);
-    return NextResponse.redirect(loginUrl);
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname + search);
+    return redirect(loginUrl);
   }
 
-  // Securely fetch the user's role from the public.users table.
-  const { data: profile, error: profileError } = await supabase
+  // select("*") keeps this working before migration 001 adds is_active.
+  const { data: profile } = await supabase
     .from("users")
-    .select("role")
+    .select("*")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  const role = profile?.role?.toString().toLowerCase();
-
-  if (profileError || !role) {
-    // Treat as unauthenticated if we cannot determine role.
-    const loginUrl = new URL("/login/admin", request.url);
-    return NextResponse.redirect(loginUrl);
+  if (profile && profile.is_active === false) {
+    const url = new URL("/login", request.url);
+    url.searchParams.set("error", "disabled");
+    return redirect(url);
   }
 
-  if (role === "admin" || role === "super_admin") {
-    // Allowed – return the response.
-    return response;
+  const role = profile?.role?.toString().toLowerCase() ?? "";
+
+  // Organizations has been retired. Old bookmarks return to the account's home.
+  if (pathname === '/organizations' || pathname.startsWith('/organizations/')) {
+    return redirect(new URL(roleHome(role), request.url));
   }
 
-  // Authenticated but not authorized.
-  const unauthorizedUrl = new URL("/admin/unauthorized", request.url);
-  return NextResponse.redirect(unauthorizedUrl);
+  if (pathname === "/admin/unauthorized") return response;
+
+  // Administrative accounts use management routes, never personal enrollment.
+  if ((role === 'admin' || role === 'super_admin') && !isAdminPath && !isSuperAdminPath) {
+    const target = pathname.startsWith('/profile') ? '/admin/account' + pathname
+      : pathname === '/settings' ? '/admin/account' : roleHome(role);
+    return redirect(new URL(target, request.url));
+  }
+  const adminSections = ['/admin/members', '/admin/payments', '/admin/courses', '/admin/memberships', '/admin/updates', '/admin/audit-logs', '/admin/account'];
+  if (role === 'admin' && isAdminPath && pathname !== '/admin' && pathname !== '/admin/dashboard'
+      && (!adminSections.some(section => pathname === section || pathname.startsWith(section + '/')) || pathname === '/admin/members/new')) {
+    return redirect(new URL('/admin', request.url));
+  }
+
+  if (isSuperAdminPath && role !== "super_admin") {
+    return redirect(new URL(role === "admin" ? "/admin" : "/admin/unauthorized", request.url));
+  }
+
+  if (isAdminPath && role !== "admin" && role !== "super_admin") {
+    return redirect(new URL("/admin/unauthorized", request.url));
+  }
+
+  // Member routes: any signed-in user. A missing profile row is healed on the
+  // client by sync_current_user(); the UI then shows least-privileged views.
+  return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  // Everything except Next internals, API routes and static files.
+  matcher: ["/((?!_next/static|_next/image|api/|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt)$).*)"],
 };

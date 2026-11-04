@@ -1,14 +1,7 @@
-// src/app/admin/layout.tsx
-import Sidebar from "@/app/admin/Sidebar";
-import React from "react";
+import { AppShell } from "@/components/shell/AppShell";
 
+// Admin area. proxy.ts only lets admin/super_admin sessions reach these routes;
+// RLS and the review RPCs re-check the role on every data call.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <section className="flex-1 overflow-y-auto p-6">
-        {children}
-      </section>
-    </main>
-  );
+  return <AppShell requireRole="admin">{children}</AppShell>;
 }

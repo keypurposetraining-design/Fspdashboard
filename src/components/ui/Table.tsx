@@ -15,9 +15,9 @@ export const Table = ({ columns, data, ...props }: TableProps) => {
   return (
     <table className="w-full text-left border-collapse" {...props}>
       <thead>
-        <tr>
+        <tr className="border-b border-[var(--card-border)] bg-[var(--muted-light)]/50">
           {columns?.map((col, i) => (
-            <th key={i} className="border-b p-2 font-semibold">
+            <th key={i} className="border-b border-[var(--card-border)] p-3 text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
               {col.header}
             </th>
           ))}
@@ -25,9 +25,9 @@ export const Table = ({ columns, data, ...props }: TableProps) => {
       </thead>
       <tbody>
         {data?.map((row, i) => (
-          <tr key={i} className="border-b">
+          <tr key={i} className="border-b border-[var(--card-border)]/50 hover:bg-[var(--muted-light)]/30 transition-colors">
             {columns?.map((col, j) => (
-              <td key={j} className="p-2">
+              <td key={j} className="p-3 text-sm text-[var(--foreground)]">
                 {col.render ? col.render(row) : row[col.accessor]}
               </td>
             ))}

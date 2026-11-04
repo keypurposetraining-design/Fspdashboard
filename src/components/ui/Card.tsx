@@ -21,7 +21,7 @@ export const Card: React.FC<CardProps> = ({
           className={twMerge(
             clsx(
               "gradient-card-inner p-6 transition-all duration-300",
-              hoverEffect && "hover:shadow-xl hover:shadow-blue-500/5",
+              hoverEffect && "hover:shadow-xl hover:shadow-[var(--brand-navy)]/5",
               className
             )
           )}
@@ -37,8 +37,8 @@ export const Card: React.FC<CardProps> = ({
     <div
       className={twMerge(
         clsx(
-          "bg-white border border-slate-200/80 rounded-2xl p-6 transition-all duration-200 shadow-xs",
-          hoverEffect && "hover:shadow-md hover:border-slate-300/80",
+          "bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 transition-all duration-200 shadow-xs",
+          hoverEffect && "hover:shadow-md hover:border-[var(--muted)]/40",
           className
         )
       )}
@@ -54,7 +54,7 @@ export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className,
   ...props
 }) => (
-  <div className={twMerge(clsx("flex items-center justify-between pb-4 mb-4 border-b border-slate-100", className))} {...props}>
+  <div className={twMerge(clsx("flex items-center justify-between pb-4 mb-4 border-b border-[var(--card-border)]", className))} {...props}>
     {children}
   </div>
 );
@@ -64,7 +64,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   className,
   ...props
 }) => (
-  <h3 className={twMerge(clsx("text-lg font-bold text-slate-900 tracking-tight", className))} {...props}>
+  <h3 className={twMerge(clsx("text-lg font-bold text-[var(--foreground)] tracking-tight", className))} {...props}>
     {children}
   </h3>
 );
@@ -74,7 +74,7 @@ export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement
   className,
   ...props
 }) => (
-  <p className={twMerge(clsx("text-sm text-slate-500 mt-0.5", className))} {...props}>
+  <p className={twMerge(clsx("text-sm text-[var(--muted)] mt-0.5", className))} {...props}>
     {children}
   </p>
 );
@@ -90,7 +90,7 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className,
   ...props
 }) => (
-  <div className={twMerge(clsx("pt-4 mt-4 border-t border-slate-100 flex items-center justify-between", className))} {...props}>
+  <div className={twMerge(clsx("pt-4 mt-4 border-t border-[var(--card-border)] flex items-center justify-between", className))} {...props}>
     {children}
   </div>
 );

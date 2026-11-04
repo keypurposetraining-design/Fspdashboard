@@ -130,7 +130,7 @@ export default function AdminMemberLogs() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="fsp-dot text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             Member Activity History Logs
           </h1>
           <p className="text-sm text-slate-600 mt-1">
@@ -154,7 +154,7 @@ export default function AdminMemberLogs() {
               placeholder="Search member, email..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 border rounded-xl w-full text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="pl-9 pr-4 py-2 border rounded-xl w-full text-xs focus:outline-none focus:ring-1 focus:ring-[var(--brand-navy)]"
             />
           </div>
 

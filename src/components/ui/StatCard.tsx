@@ -12,7 +12,7 @@ export interface StatCardProps {
     value: string;
     isUpward: boolean;
   };
-  color?: "blue" | "orange" | "green" | "purple" | "teal" | "red" | "yellow" | "gray";
+  color?: "navy" | "gold" | "green" | "purple" | "teal" | "red" | "amber" | "gray";
   badge?: string;
 }
 
@@ -22,32 +22,34 @@ export const StatCard: React.FC<StatCardProps> = ({
   subtitle,
   icon,
   trend,
-  color = "blue",
+  color = "navy",
   badge,
 }) => {
   const iconBgStyles = {
-    blue: "bg-blue-50 text-[#0F4CFF] border border-blue-100",
-    orange: "bg-orange-50 text-[#FF7A00] border border-orange-100",
-    green: "bg-emerald-50 text-emerald-600 border border-emerald-100",
-    purple: "bg-purple-50 text-purple-600 border border-purple-100",
-    teal: "bg-teal-50 text-teal-600 border border-teal-100",
-    red: "bg-rose-50 text-rose-600 border border-rose-100",
-    yellow: "bg-amber-50 text-amber-600 border border-amber-100",
-    gray: "bg-slate-50 text-slate-600 border border-slate-100",
+    navy: "bg-[var(--brand-navy-light)] text-[var(--brand-navy)] border border-[var(--brand-navy)]/20",
+    gold: "bg-[var(--brand-gold-light)] text-[var(--brand-gold-ink)] border border-[var(--brand-gold)]/20",
+    green: "bg-[var(--success-light)] text-[var(--success)] border border-[var(--success-border)]/60",
+    purple: "bg-[var(--info-light)] text-[var(--info)] border border-[var(--info-border)]/60",
+    teal: "bg-[var(--success-light)] text-[var(--success)] border border-[var(--success-border)]/60",
+    red: "bg-[var(--danger-light)] text-[var(--danger)] border border-[var(--danger-border)]/60",
+    amber: "bg-[var(--warning-light)] text-[var(--warning)] border border-[var(--warning-border)]/60",
+    gray: "bg-[var(--muted-light)] text-[var(--muted)] border border-[var(--muted-border)]",
   };
 
   return (
     <Card hoverEffect className="relative overflow-hidden">
+      {/* FSP accent rule — the yellow bar that marks the site's key panels */}
+      <span className="absolute inset-x-0 top-0 h-[3px] bg-[var(--brand-yellow)]" />
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+          <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-1">
             {title}
           </p>
-          <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+          <h3 className="text-2xl font-black text-[var(--foreground)] tracking-tight">
             {value}
           </h3>
           {subtitle && (
-            <p className="text-xs text-slate-500 mt-1 font-medium">{subtitle}</p>
+            <p className="text-xs text-[var(--muted)] mt-1 font-medium">{subtitle}</p>
           )}
         </div>
         {icon && (
@@ -63,7 +65,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       </div>
 
       {(trend || badge) && (
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <div className="mt-4 pt-3 border-t border-[var(--card-border)] flex items-center justify-between text-xs">
           {trend && (
             <span
               className={clsx(
@@ -80,7 +82,7 @@ export const StatCard: React.FC<StatCardProps> = ({
             </span>
           )}
           {badge && (
-            <span className="font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+            <span className="font-medium text-[var(--muted)] bg-[var(--muted-light)] px-2 py-0.5 rounded-full">
               {badge}
             </span>
           )}

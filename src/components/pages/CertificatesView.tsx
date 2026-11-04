@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toDataError } from "@/lib/data/errors";
 import { useAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -13,6 +14,7 @@ export const CertificatesView: React.FC = () => {
   const { user } = useAuth();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [member, setMember] = useState<any>(null);
   const [certificates, setCertificates] = useState<any[]>([]);
@@ -24,7 +26,7 @@ export const CertificatesView: React.FC = () => {
   async function fetchInitialData() {
     if (!user) return;
     try {
-      setLoading(true);
+      setLoading(true); setLoadError(null);
       // Fetch member
       const { data: memberData, error: memberErr } = await supabase
         .from("members")
@@ -47,7 +49,7 @@ export const CertificatesView: React.FC = () => {
         await logMemberActivity("CERTIFICATE_VIEW");
       }
     } catch (err: any) {
-      console.error("Error loading certificates view:", err.message);
+      setLoadError(toDataError(err, "certificates").message);
     } finally {
       setLoading(false);
     }
@@ -63,10 +65,10 @@ export const CertificatesView: React.FC = () => {
               ACCREDITED &amp; VERIFIED
             </Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="fsp-dot text-2xl sm:text-3xl font-black text-[var(--foreground)] tracking-tight">
             Certificates &amp; Accreditations
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-[var(--muted)] mt-1">
             Your verified credentials, digital badges, and official FSP facilitator accreditations.
           </p>
         </div>
@@ -75,19 +77,20 @@ export const CertificatesView: React.FC = () => {
         </Button>
       </div>
 
+      {loadError && <div role="alert" className="mb-4 rounded-2xl border border-[var(--danger-border)] bg-[var(--danger-light)] p-4 text-sm font-medium">{loadError}</div>}
       {loading ? (
-        <div className="py-12 text-center text-slate-500 font-medium">Loading credentials...</div>
+        <div className="py-12 text-center text-[var(--muted)] font-medium">Loading credentials...</div>
       ) : certificates.length === 0 ? (
-        <div className="py-12 text-center text-slate-500 border border-dashed rounded-3xl bg-white">
+        <div className="py-12 text-center text-[var(--muted)] border border-dashed rounded-3xl bg-[var(--card-bg)]">
           No accreditations or graduation certificates issued yet.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {certificates.map((cert) => (
-            <Card key={cert.id} className="bg-white border border-slate-200/80 rounded-2xl p-5 hover:border-blue-200 hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+            <Card key={cert.id} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 hover:border-[var(--brand-navy-light)] hover:shadow-md transition-all duration-200 flex flex-col justify-between">
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0F4CFF] to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[var(--brand-navy)] to-[var(--brand-navy-hover)] text-white flex items-center justify-center shrink-0 shadow-md">
                     <Award className="w-6 h-6" />
                   </div>
                   <Badge variant="pro" size="sm">
@@ -96,21 +99,21 @@ export const CertificatesView: React.FC = () => {
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-bold text-[#FF7A00] uppercase tracking-wider block mb-1">
+                  <span className="text-[10px] font-bold text-[var(--brand-gold-ink)] uppercase tracking-wider block mb-1">
                     FACILITATION ACCREDITATION
                   </span>
-                  <h3 className="text-lg font-bold text-slate-900 leading-snug">
+                  <h3 className="text-lg font-bold text-[var(--foreground)] leading-snug">
                     {cert.courses?.title || "Accredited Level Graduate"}
                   </h3>
-                  <p className="text-xs text-slate-500 font-mono mt-1">
-                    Credential ID: <strong className="text-slate-700">{cert.id}</strong>
+                  <p className="text-xs text-[var(--muted)] font-mono mt-1">
+                    Credential ID: <strong className="text-[var(--foreground)]">{cert.id}</strong>
                   </p>
                 </div>
 
                 {/* Issue Date & Verification */}
-                <div className="flex items-center justify-between text-xs text-slate-500 font-medium pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-between text-xs text-[var(--muted)] font-medium pt-3 border-t border-[var(--card-border)]">
                   <span>Issued: {new Date(cert.issued_at).toLocaleDateString()}</span>
-                  <span className="text-emerald-600 font-bold flex items-center gap-1">
+                  <span className="text-[var(--success)] font-bold flex items-center gap-1">
                     <ShieldCheck className="w-4 h-4" />
                     Publicly Verifiable
                   </span>

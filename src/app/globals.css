@@ -1,28 +1,71 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  
-  --primary: #0f4cff;
-  --primary-hover: #0d41db;
-  --primary-light: #eef2ff;
-  
-  --secondary: #ff7a00;
-  --secondary-hover: #e06c00;
-  --secondary-light: #fff4eb;
-  
-  --card-bg: #ffffff;
-  --card-border: #e2e8f0;
-  
-  --success: #10b981;
-  --success-light: #ecfdf5;
-  
-  --warning: #f59e0b;
-  --warning-light: #fef3c7;
-  
-  --danger: #ef4444;
-  --danger-light: #fef2f2;
+  /* === FSP BRAND NAVY ===
+     Sampled from the FSP website hero band / JOIN FSP button / logo. */
+  --brand-navy: #1D3A8F;
+  --brand-navy-hover: #162E75;
+  --brand-navy-secondary: #14286B;
+  --brand-navy-deep: #0E1D4D;
+  --brand-navy-bright: #2A4CA8;
+  /* Light tints — these are backgrounds for navy text, not darker navies. */
+  --brand-navy-light: #E8EDF9;
+  --brand-navy-soft: #F0F4FC;
+  --brand-navy-border: #C3D0EC;
+
+  /* === FSP ACCENT ORANGE ===
+     The square dots, the LEARN/LEAD/IMPACT rail, the program badges.
+     `-ink` is the darkened version for orange text on light fills. */
+  --brand-gold: #F5A623;
+  --brand-gold-hover: #DE9015;
+  --brand-gold-light: #FEF3E2;
+  --brand-gold-border: #F7CE8E;
+  --brand-gold-ink: #8A5205;
+
+  /* Brighter yellow companion — used for high-visibility accents:
+     active-nav rails, card top rules, highlight bars. */
+  --brand-yellow: #FFC21A;
+  --brand-yellow-hover: #F0B000;
+  --brand-yellow-light: #FFF8E3;
+  --brand-yellow-border: #FFE08A;
+
+  /* Aliases so new code can use the accurate name */
+  --brand-orange: var(--brand-gold);
+  --brand-orange-hover: var(--brand-gold-hover);
+  --brand-orange-light: var(--brand-gold-light);
+  --brand-orange-ink: var(--brand-gold-ink);
+
+  /* === NEUTRALS ===
+     Warm gray to match the site's page surface, not Tailwind's cool slate. */
+  --background: #F1F1EF;
+  --foreground: #111111;
+  --card-bg: #FFFFFF;
+  --card-border: #E4E4E1;
+  --surface-raised: #E8E8E5;
+  --muted: #6B6B66;
+  --muted-light: #F5F5F3;
+  --muted-border: #E4E4E1;
+
+  --success: #0E8A4F;
+  --success-light: #E8F6EE;
+  --success-border: #A5DCBF;
+
+  --warning: #B9741A;
+  --warning-light: #FEF3E2;
+  --warning-border: #F7CE8E;
+
+  --danger: #D33A3A;
+  --danger-light: #FCEFEF;
+  --danger-border: #F2B4B4;
+
+  --info: var(--brand-navy);
+  --info-light: var(--brand-navy-light);
+  --info-border: var(--brand-navy-border);
+
+  /* === GLASS EFFECTS === */
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.15);
+  --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 @theme inline {
@@ -30,13 +73,59 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono);
-  
-  --color-brand-blue: #0f4cff;
-  --color-brand-blue-hover: #0d41db;
-  --color-brand-blue-light: #eef2ff;
-  --color-brand-orange: #ff7a00;
-  --color-brand-orange-hover: #e06c00;
-  --color-brand-orange-light: #fff4eb;
+
+  /* Brand Navy */
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-hover: var(--brand-navy-hover);
+  --color-brand-navy-light: var(--brand-navy-light);
+  --color-brand-navy-soft: var(--brand-navy-soft);
+  --color-brand-navy-secondary: var(--brand-navy-secondary);
+  --color-brand-navy-deep: var(--brand-navy-deep);
+  --color-brand-navy-bright: var(--brand-navy-bright);
+  --color-brand-navy-border: var(--brand-navy-border);
+
+  /* Brand Orange (gold-* names kept for existing components) */
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-hover: var(--brand-gold-hover);
+  --color-brand-gold-light: var(--brand-gold-light);
+  --color-brand-gold-border: var(--brand-gold-border);
+  --color-brand-gold-ink: var(--brand-gold-ink);
+  --color-brand-orange: var(--brand-gold);
+  --color-brand-orange-hover: var(--brand-gold-hover);
+  --color-brand-orange-light: var(--brand-gold-light);
+  --color-brand-orange-ink: var(--brand-gold-ink);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-yellow-hover: var(--brand-yellow-hover);
+  --color-brand-yellow-light: var(--brand-yellow-light);
+  --color-brand-yellow-border: var(--brand-yellow-border);
+
+  /* Semantic */
+  --color-muted: var(--muted);
+  --color-muted-light: var(--muted-light);
+  --color-border: var(--card-border);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+  --color-danger: var(--danger);
+  --color-danger-light: var(--danger-light);
+  --color-info: var(--info);
+  --color-info-light: var(--info-light);
+
+  /* Warm the built-in slate ramp so the ~200 existing slate text and
+     border usages pick up the FSP neutral tone automatically. */
+  --color-slate-50: #F7F7F5;
+  --color-slate-100: #F0F0ED;
+  --color-slate-200: #E4E4E1;
+  --color-slate-300: #D1D1CC;
+  --color-slate-400: #9C9C95;
+  --color-slate-500: #6B6B66;
+  --color-slate-600: #55554F;
+  --color-slate-700: #3D3D39;
+  --color-slate-800: #262624;
+  --color-slate-900: #141413;
 }
 
 body {
@@ -56,27 +145,134 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--muted-border);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--muted);
 }
 
 /* Subtle animations & Glassmorphism helper */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
 }
 
 .gradient-card-border {
   position: relative;
   border-radius: 1rem;
-  background: linear-gradient(135deg, rgba(15, 76, 255, 0.15), rgba(255, 122, 0, 0.15));
+  background: linear-gradient(135deg, rgba(29, 58, 143, 0.18), rgba(245, 166, 35, 0.18));
   padding: 1px;
 }
 
 .gradient-card-inner {
   background: #ffffff;
   border-radius: 0.95rem;
+}
+
+/* Brand gradient helpers */
+.brand-gradient {
+  background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy-secondary) 100%);
+}
+
+.brand-gradient-gold {
+  background: linear-gradient(135deg, var(--brand-gold) 0%, var(--brand-gold-hover) 100%);
+}
+
+.brand-gradient-mixed {
+  background: linear-gradient(135deg, rgba(29, 58, 143, 0.18), rgba(245, 166, 35, 0.18));
+}
+
+/* The FSP signature: a deep navy field with the orange accent rail,
+   same treatment as the website's LEARN / LEAD / IMPACT band. */
+.fsp-band {
+  background: var(--brand-navy);
+  color: #ffffff;
+  border-bottom: 3px solid var(--brand-gold);
+}
+
+/* High-visibility yellow accents, echoing the site's accent rail. */
+.fsp-rule {
+  border-top: 3px solid var(--brand-yellow);
+}
+
+.fsp-rail {
+  box-shadow: inset 3px 0 0 0 var(--brand-yellow);
+}
+
+.fsp-highlight {
+  background: linear-gradient(
+    to bottom,
+    transparent 62%,
+    var(--brand-yellow) 62%,
+    var(--brand-yellow) 100%
+  );
+}
+
+/* The accent square that follows FSP headlines, as on the website.
+   Sized in em so it tracks whatever heading it is attached to.
+   Switch `background` to var(--brand-yellow) for the brighter yellow. */
+.fsp-dot::after {
+  content: "";
+  display: inline-block;
+  width: 0.3em;
+  height: 0.3em;
+  margin-left: 0.16em;
+  vertical-align: baseline;
+  background: var(--brand-gold);
+}
+
+/* Utility classes */
+.bg-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+}
+
+.border-glass {
+  border: 1px solid var(--glass-border);
+}
+
+.text-brand-navy {
+  color: var(--brand-navy);
+}
+
+.text-brand-gold {
+  color: var(--brand-gold);
+}
+
+.text-brand-orange-ink {
+  color: var(--brand-gold-ink);
+}
+
+.text-foreground {
+  color: var(--foreground);
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.bg-brand-navy {
+  background-color: var(--brand-navy);
+}
+
+.bg-brand-gold {
+  background-color: var(--brand-gold);
+}
+
+.bg-brand-navy-soft {
+  background-color: var(--brand-navy-soft);
+}
+
+.bg-brand-gold-light {
+  background-color: var(--brand-gold-light);
+}
+
+.hover\:bg-brand-navy-hover:hover {
+  background-color: var(--brand-navy-hover);
+}
+
+.hover\:bg-brand-gold-hover:hover {
+  background-color: var(--brand-gold-hover);
 }

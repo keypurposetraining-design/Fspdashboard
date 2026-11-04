@@ -91,6 +91,7 @@ export interface Event {
   start_time: Date;
   end_time?: Date;
   location?: string;
+  fee?: number; // registration fee (0 = free)
   created_at: Date;
   updated_at: Date;
   created_by?: string;
@@ -113,6 +114,7 @@ export interface Payment {
   id: string;
   member_id: string;
   membership_id?: string;
+  event_id?: string; // set when the payment is for an event RSVP
   amount: number;
   currency: string;
   status: "pending" | "succeeded" | "failed" | "refunded";
@@ -176,4 +178,11 @@ export interface AuditLog {
   performed_by?: string;
   performed_at: Date;
   details?: any;
+}
+
+export interface AppSetting {
+  key: string;
+  value: any; // JSONB
+  updated_at: Date;
+  updated_by?: string;
 }

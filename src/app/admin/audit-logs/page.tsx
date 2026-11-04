@@ -1,155 +1,100 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Search, RefreshCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
-import { Search, Shield, Eye, RefreshCcw } from "lucide-react";
+import { auditMeta } from "@/components/super-admin/auditLabels";
+import styles from "./ActivityLog.module.css";
+
+interface ActivityLog {
+  id: string;
+  action: string;
+  performed_at: string;
+  performed_by: string | null;
+  users: { name: string | null; email: string } | null;
+}
+const readableAction = (action: string) => auditMeta(action.trim().toUpperCase().replace(/[\s.-]+/g, "_")).label;
+const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+const timeFormat = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+const PAGE_SIZE = 25;
 
 export default function AdminAuditLogs() {
-  const supabase = createClient();
+  const [db] = useState(() => createClient());
   const [loading, setLoading] = useState(true);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [filteredLogs, setFilteredLogs] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const [selectedLog, setSelectedLog] = useState<any>(null);
-
-  useEffect(() => {
-    fetchAuditLogs();
-  }, []);
-
-  async function fetchAuditLogs() {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("audit_logs")
-        .select(`
-          id,
-          action,
-          table_name,
-          record_id,
-          performed_at,
-          performed_by,
-          details,
-          users (
-            name,
-            email
-          )
-        `)
-        .order("performed_at", { ascending: false });
-
+      const { data, error } = await db.from("audit_logs")
+        .select("id, action, performed_at, performed_by, users:performed_by(name, email)")
+        .order("performed_at", { ascending: false }).limit(500);
       if (error) throw error;
-      setLogs(data || []);
-      setFilteredLogs(data || []);
-    } catch (err: any) {
-      console.error("Error loading audit logs:", err.message);
+      setLogs((data ?? []) as unknown as ActivityLog[]);
+    } catch (err) {
+      console.error("Could not load activity log:", err);
+      setError("Activity could not be loaded. Please refresh to try again.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [db]);
 
-  // Handle Search
   useEffect(() => {
-    const q = searchQuery.toLowerCase();
-    const filtered = logs.filter(l => 
-      (l.action || "").toLowerCase().includes(q) || 
-      (l.table_name || "").toLowerCase().includes(q) ||
-      (l.users?.email || "").toLowerCase().includes(q)
-    );
-    setFilteredLogs(filtered);
-  }, [searchQuery, logs]);
+    const timer = setTimeout(() => { void load(); }, 0);
+    return () => clearTimeout(timer);
+  }, [load]);
 
-  return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Audit Logs Ledger</h1>
-          <p className="text-sm text-slate-500 font-medium">Trace all critical administrative edits, membership modifications, and grading records.</p>
-        </div>
+  const query = search.trim().toLowerCase();
+  const matches = logs.filter(log => `${readableAction(log.action)} ${log.users?.name ?? ""} ${log.users?.email ?? ""} ${log.performed_by ? "" : "System"}`.toLowerCase().includes(query));
+  const pages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pages);
+  const visible = matches.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  return <div className={styles.page}>
+    <header className={styles.header}>
+      <h1>Activity log</h1>
+      <p>A clear history of account, membership and program activity.</p>
+    </header>
+    <section className={styles.toolbar} aria-label="Activity search">
+      <div className={styles.search}>
+        <Search size={16} aria-hidden="true" />
+        <input type="search" aria-label="Search activity, name or email" placeholder="Search activity, name or email" value={search}
+          onChange={event => { setSearch(event.target.value); setPage(1); }} />
       </div>
-
-      {/* FILTER & SEARCH */}
-      <Card>
-        <CardContent className="p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-            <Input
-              placeholder="Search by action, table, or email..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Button variant="outline" size="sm" onClick={fetchAuditLogs} icon={<RefreshCcw className="w-4 h-4" />}>
-            Refresh
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* LEDGER TABLE */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="py-12 text-center text-slate-500 font-medium">Retrieving system ledger...</div>
-          ) : filteredLogs.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 font-medium">No system operations logged.</div>
-          ) : (
-            <Table
-              columns={[
-                { header: "Operation Action", accessor: "action", render: (row) => (
-                  <Badge variant={row.action.includes("deleted") || row.action.includes("revoked") ? "danger" : "neutral"}>
-                    {row.action}
-                  </Badge>
-                ) },
-                { header: "Target Table", accessor: "table_name" },
-                { header: "Record ID Reference", accessor: "record_id", render: (row) => <span className="font-mono text-xs block truncate max-w-xs">{row.record_id || "—"}</span> },
-                { header: "Invoked By", accessor: "user", render: (row) => row.users ? `${row.users.name || ""} (${row.users.email})` : row.performed_by || "System Trigger" },
-                { header: "Logged At", accessor: "performed_at", render: (row) => new Date(row.performed_at).toLocaleString() },
-                { header: "Details (JSON)", accessor: "details", render: (row) => (
-                  <Button variant="outline" size="xs" onClick={() => setSelectedLog(row)} icon={<Eye className="w-3 h-3" />}>
-                    Payload
-                  </Button>
-                ) }
-              ]}
-              data={filteredLogs}
-            />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* JSON VIEW MODAL */}
-      {selectedLog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-lg bg-white p-6 shadow-xl relative animate-in zoom-in duration-150">
-            <button className="absolute right-4 top-4 text-slate-400 hover:text-slate-600" onClick={() => setSelectedLog(null)}>
-              <span className="text-xl font-bold">×</span>
-            </button>
-            <CardHeader className="p-0 pb-4 border-b">
-              <CardTitle className="text-xl font-bold flex items-center gap-2">
-                <Shield className="w-5 h-5 text-[#0F4CFF]" />
-                Audit Logs Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div>
-                <span className="text-xs text-slate-400 font-semibold block uppercase tracking-wider">Operation Action</span>
-                <span className="text-sm font-semibold text-slate-900 mt-0.5 block">{selectedLog.action}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 font-semibold block uppercase tracking-wider">Mutation Details Payload</span>
-                <pre className="mt-2 text-xs bg-slate-50 border border-slate-100 p-4 rounded-xl font-mono text-slate-600 overflow-x-auto whitespace-pre-wrap max-h-[220px]">
-                  {JSON.stringify(selectedLog.details, null, 2)}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </div>
-  );
+      <Button variant="outline" size="sm" disabled={loading} onClick={load} icon={<RefreshCcw className="h-4 w-4" />}>Refresh</Button>
+    </section>
+    <section className={styles.panel} aria-label="Recent activity">
+      <div className={styles.panelHeading}><h2>Recent activity</h2><span>Latest 500 entries · Times in IST</span></div>
+      {loading ? <p className={styles.message} role="status">Loading activity...</p>
+        : error ? <p className={styles.error} role="alert">{error}</p>
+        : !matches.length ? <p className={styles.message}>{query ? "No activity matches your search." : "No activity recorded yet."}</p>
+        : <div className={styles.scroll} role="region" aria-label="Activity log table. Scroll horizontally on smaller screens." tabIndex={0}>
+          <table className={styles.table}>
+            <caption className="sr-only">Recent actions, the person who performed them, and when they happened.</caption>
+            <colgroup><col style={{ width: "42%" }} /><col style={{ width: "34%" }} /><col style={{ width: "24%" }} /></colgroup>
+            <thead><tr><th scope="col">Activity</th><th scope="col">Performed by</th><th scope="col">Date & time</th></tr></thead>
+            <tbody>{visible.map(log => {
+              const date = new Date(log.performed_at);
+              const valid = !Number.isNaN(date.getTime());
+              return <tr key={log.id}>
+                <td><span className={styles.action}>{readableAction(log.action)}</span></td>
+                <td><div className={styles.name}>{log.users?.name?.trim() || log.users?.email || (log.performed_by ? "Account unavailable" : "System")}</div>
+                  {log.users?.name?.trim() && log.users.email && <div className={styles.email}>{log.users.email}</div>}</td>
+                <td>{valid ? <time dateTime={log.performed_at}><span className={styles.date}>{dateFormat.format(date)}</span><span className={styles.time}>{timeFormat.format(date)} IST</span></time> : <span className={styles.time}>Date unavailable</span>}</td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>}
+      {!loading && !error && matches.length > 0 && <footer className={styles.pagination}>
+        <span>{matches.length} {matches.length === 1 ? "entry" : "entries"} · Page {currentPage} of {pages}</span>
+        <div><Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Previous</Button>
+          <Button variant="outline" size="sm" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Next</Button></div>
+      </footer>}
+    </section>
+  </div>;
 }

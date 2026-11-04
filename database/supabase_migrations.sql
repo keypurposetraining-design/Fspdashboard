@@ -1,3 +1,6 @@
+-- NOTE: base schema (historical). Apply database/migrations/*.sql in order after
+-- this file; they fix security issues present in the original version.
+
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -108,6 +111,7 @@ CREATE TABLE events (
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE,
     location VARCHAR(255),
+    image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     created_by UUID REFERENCES users(id),
@@ -235,52 +239,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- Trigger to sync new auth.users to public.users and public.members
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-DECLARE
-  name_parts text[];
-  first_name text;
-  last_name text;
-  user_role text;
-BEGIN
-  user_role := COALESCE(new.raw_user_meta_data->>'role', 'member');
-  
-  INSERT INTO public.users (id, email, name, role)
-  VALUES (
-    new.id,
-    new.email,
-    COALESCE(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    user_role
-  );
-  
-  IF user_role = 'member' THEN
-    name_parts := string_to_array(new.raw_user_meta_data->>'name', ' ');
-    first_name := name_parts[1];
-    IF array_length(name_parts, 1) > 1 THEN
-      last_name := array_to_string(name_parts[2:array_length(name_parts, 1)], ' ');
-    ELSE
-      last_name := '';
-    END IF;
- 
-    INSERT INTO public.members (id, user_id, first_name, last_name)
-    VALUES (
-      uuid_generate_v4(),
-      new.id,
-      COALESCE(first_name, ''),
-      COALESCE(last_name, '')
-    );
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
--- Re-create trigger if it exists
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- [REMOVED 2026-09-24] members_user_id_unique, handle_new_user() and the
+-- on_auth_user_created trigger previously lived here. That version trusted
+-- raw_user_meta_data.role (privilege escalation), granted a free active
+-- membership, and could block sign-in. Superseded by:
+--   database/migrations/002_user_sync.sql   (single _sync_user + safe triggers)
+--   database/migrations/003_data_repair.sql (FK-safe dedup + unique constraint)
 
 -- Enable RLS and define Policies for tables
 
@@ -473,21 +437,21 @@ DROP POLICY IF EXISTS "Allow members to delete their own files" ON storage.objec
 -- Create policies
 CREATE POLICY "Allow members to insert their own files" ON storage.objects
   FOR INSERT TO authenticated WITH CHECK (
-    bucket_id = 'task-submissions' AND 
+    bucket_id = 'task-submissions' AND
     (storage.foldername(name))[1] = auth.uid()::text
   );
 
 CREATE POLICY "Allow members to view their own files or admins view all" ON storage.objects
   FOR SELECT TO authenticated USING (
     bucket_id = 'task-submissions' AND (
-      (storage.foldername(name))[1] = auth.uid()::text OR 
+      (storage.foldername(name))[1] = auth.uid()::text OR
       EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND (role = 'admin' OR role = 'super_admin'))
     )
   );
 
 CREATE POLICY "Allow members to delete their own files" ON storage.objects
   FOR DELETE TO authenticated USING (
-    bucket_id = 'task-submissions' AND 
+    bucket_id = 'task-submissions' AND
     (storage.foldername(name))[1] = auth.uid()::text
   );
 
@@ -534,3 +498,136 @@ CREATE POLICY "Allow anonymous failed login logs" ON public.member_activity_logs
   FOR INSERT TO anon
   WITH CHECK (action = 'AUTH_LOGIN_FAILED' AND user_id IS NULL AND member_id IS NULL);
 
+-- ============================================================================
+-- Event fees & configurable platform fees (Admin Content Hub)
+-- ============================================================================
+
+-- Per-event registration fee (0 = free). Members pay this when RSVPing.
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS fee NUMERIC(10,2) NOT NULL DEFAULT 0;
+
+-- Link a payment to a specific event so event RSVP payments are attributable.
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS event_id UUID REFERENCES public.events(id);
+CREATE INDEX IF NOT EXISTS idx_payments_event_id ON public.payments(event_id);
+
+-- Key/value platform settings (e.g. membership renewal fee) editable by admins.
+CREATE TABLE IF NOT EXISTS public.app_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_by UUID REFERENCES public.users(id)
+);
+
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Authenticated can read app settings" ON public.app_settings;
+CREATE POLICY "Authenticated can read app settings" ON public.app_settings
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Admins can manage app settings" ON public.app_settings;
+CREATE POLICY "Admins can manage app settings" ON public.app_settings
+  FOR ALL USING (public.is_admin());
+
+-- Seed the default membership renewal fee (currently hardcoded in the UI).
+INSERT INTO public.app_settings (key, value)
+VALUES ('renewal_fee', '{"amount": 3000, "currency": "INR"}')
+ON CONFLICT (key) DO NOTHING;
+
+-- ============================================================================
+-- Auth/profile link repair (idempotent; safe to re-run)
+--
+-- Fixes the error: "Authenticated user has no matching public.users profile"
+--
+-- Cause: AuthProvider.fetchUserProfile() reads public.users BY id
+-- (public.users.id = auth.users.id) through an anon-key client, so RLS applies.
+-- The public.users SELECT policy only returns the row when the ids match
+-- (auth.uid() = id). If the row was created by a manual INSERT (random UUID)
+-- instead of the on_auth_user_created trigger, the ids differ and the query
+-- returns zero rows -> the profile lookup fails even though the row exists.
+--
+-- This block (1) guarantees is_admin() and the own-row SELECT policy exist,
+-- and (2) aligns any drifted public.users.id with the matching auth.users.id.
+-- It never creates/deletes users, never changes roles, never disables RLS,
+-- and only touches rows that are actually broken (email has an auth user with
+-- a different id) and that have no FK dependents.
+-- ============================================================================
+
+-- 1) Helper used by the RLS policy below (idempotent).
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.users
+    WHERE id = auth.uid() AND (role = 'admin' OR role = 'super_admin')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- 2) Guarantee RLS is on and the own-row SELECT policy exists.
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read own record or admins read all" ON public.users;
+CREATE POLICY "Users can read own record or admins read all" ON public.users
+  FOR SELECT USING (auth.uid() = id OR public.is_admin());
+
+-- 3) Align drifted public.users.id with auth.users.id (email-keyed).
+--    Refuses to auto-fix if FK dependents reference the stale id, so the admin
+--    can re-point them manually without silently breaking data.
+DO $$
+DECLARE
+  r record;
+  v_auth_id uuid;
+  v_dependents int;
+BEGIN
+  FOR r IN
+    SELECT u.email, u.id AS stale_id
+    FROM public.users u
+    JOIN auth.users au ON au.email = u.email
+    WHERE u.id IS DISTINCT FROM au.id
+  LOOP
+    SELECT au.id INTO v_auth_id FROM auth.users au WHERE au.email = r.email;
+
+    SELECT (SELECT count(*) FROM public.members WHERE user_id = r.stale_id)
+         + (SELECT count(*) FROM public.notifications WHERE user_id = r.stale_id)
+         + (SELECT count(*) FROM public.community_posts WHERE user_id = r.stale_id)
+    INTO v_dependents;
+
+    IF v_dependents > 0 THEN
+      RAISE NOTICE 'SKIP %: % FK dependents still reference stale id %; re-point them manually.',
+        r.email, v_dependents, r.stale_id;
+      CONTINUE;
+    END IF;
+
+    BEGIN
+      UPDATE public.users
+      SET id = v_auth_id, updated_at = now()
+      WHERE id = r.stale_id;
+      RAISE NOTICE 'Aligned public.users.id for % -> %', r.email, v_auth_id;
+    EXCEPTION WHEN foreign_key_violation OR unique_violation THEN
+      RAISE NOTICE 'SKIP %: could not align id % (FK/unique violation); fix references manually.',
+        r.email, r.stale_id;
+    END;
+  END LOOP;
+END $$;
+
+
+-- ============================================================================
+-- Seed FSP Catalyst Connect Event
+-- ============================================================================
+-- Event date: August 16, 2026 (tomorrow from current app date August 15, 2026)
+-- Poster image: public/fsp-catalyst-connect-poster.png
+INSERT INTO public.events (title, description, start_time, end_time, location, fee, image_url)
+VALUES (
+    'FSP Catalyst Connect',
+    'A powerful day of connections, ideas and growth for trainers who want to go further.
+
+Connect • Collaborate • Conquer',
+    '2026-08-16T09:30:00+05:30',
+    '2026-08-16T17:00:00+05:30',
+    'IIT Madras Research Park, Chennai, Tamil Nadu',
+    0,
+    '/fsp-catalyst-connect-poster.png'
+)
+ON CONFLICT DO NOTHING;
+
+
+-- [REMOVED 2026-09-24] sync_current_user() previously lived here (a third copy
+-- of the sync logic). Superseded by database/migrations/002_user_sync.sql.

@@ -1,0 +1,17 @@
+﻿const ts = require('typescript');
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const source = fs.readFileSync('src/lib/membership-dates.ts', 'utf8');
+const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+const mod = { exports: {} };
+new Function('exports', 'require', 'module', compiled)(mod.exports, require, mod);
+const { membershipExpiry, daysRemaining, todayDate, csvCell } = mod.exports;
+assert.equal(membershipExpiry('2024-02-29'), '2025-02-28');
+assert.equal(membershipExpiry('2025-11-04'), '2026-11-04');
+assert.equal(membershipExpiry('2023-02-28'), '2024-02-28');
+assert.equal(membershipExpiry(''), '');
+assert.equal(daysRemaining(todayDate()), 0);
+assert.equal(daysRemaining(null), null);
+assert.equal(csvCell('=HYPERLINK("bad")'), '"\'=HYPERLINK(""bad"")"');
+assert.equal(csvCell('A, "B"'), '"A, ""B"""');
+console.log('8 membership date and CSV checks passed');

@@ -24,30 +24,30 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   const getIcon = () => {
     switch (notification.type) {
       case "event":
-        return <Calendar className="w-4 h-4 text-blue-600" />;
+        return <Calendar className="w-4 h-4 text-[var(--brand-navy)]" />;
       case "task":
         return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
       case "community":
         return <MessageSquare className="w-4 h-4 text-purple-600" />;
       case "billing":
-        return <CreditCard className="w-4 h-4 text-amber-600" />;
+        return <CreditCard className="w-4 h-4 text-[var(--warning)]" />;
       default:
-        return <BellRing className="w-4 h-4 text-[#FF7A00]" />;
+        return <BellRing className="w-4 h-4 text-[var(--brand-gold)]" />;
     }
   };
 
   const getIconBg = () => {
     switch (notification.type) {
       case "event":
-        return "bg-blue-50 border-blue-100";
+        return "bg-[var(--brand-navy-light)] border-[var(--brand-navy)]/20";
       case "task":
         return "bg-emerald-50 border-emerald-100";
       case "community":
         return "bg-purple-50 border-purple-100";
       case "billing":
-        return "bg-amber-50 border-amber-100";
+        return "bg-[var(--brand-gold-light)] border-[var(--brand-gold-border)]";
       default:
-        return "bg-orange-50 border-orange-100";
+        return "bg-[var(--brand-gold-light)] border-[var(--brand-gold)]/20";
     }
   };
 
@@ -56,8 +56,8 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
       className={clsx(
         "p-4 rounded-2xl border transition-all duration-200 flex items-start gap-4",
         notification.isRead
-          ? "bg-white border-slate-200/70"
-          : "bg-blue-50/40 border-blue-200 shadow-xs"
+          ? "bg-white border-[var(--card-border)]"
+          : "bg-[var(--brand-navy-light)]/40 border-[var(--brand-navy)]/30 shadow-xs"
       )}
     >
       <div className={clsx("p-2.5 rounded-xl border shrink-0 mt-0.5", getIconBg())}>
@@ -66,14 +66,14 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 mb-1">
-          <h4 className="text-sm font-bold text-slate-900 tracking-tight">
+          <h4 className="text-sm font-bold text-[var(--foreground)] tracking-tight">
             {notification.title}
           </h4>
-          <span className="text-xs text-slate-400 font-medium shrink-0">
+          <span className="text-xs text-[var(--muted)] font-medium shrink-0">
             {notification.timestamp}
           </span>
         </div>
-        <p className="text-xs text-slate-600 leading-relaxed mb-2">
+        <p className="text-xs text-[var(--muted)] leading-relaxed mb-2">
           {notification.message}
         </p>
 
@@ -95,7 +95,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
           {!notification.isRead && (
             <button
               onClick={() => onMarkRead?.(notification.id)}
-              className="text-xs font-semibold text-[#0F4CFF] hover:underline"
+              className="text-xs font-semibold text-[var(--brand-navy)] hover:underline"
             >
               Mark as read
             </button>

@@ -1,150 +1,73 @@
-# FSP Dashboard Production Route Map
+# FSP Dashboard Route Map
 
-This document outlines the final production routing structure, associated views, database tables queried/mutated, and authorization policies.
+Every signed-in page renders inside the shared `AppShell` (`src/components/shell/`). The shell provides a sidebar (a drawer on mobile), a header with page search, a notification bell and a user menu, and loading and access states.
 
----
+**Access is enforced in four layers:**
 
-## Member Portal Routes
+1. `src/proxy.ts` on the server. It reads the role from `public.users` and never from user metadata.
+2. RLS on every table.
+3. `SECURITY DEFINER` RPCs for every state change (`database/migrations/001`–`005`).
+4. The UI, which only hides navigation.
 
-### `/` (Root)
-- **Component**: Home Layout containing sidebar tabs
-- **Authentication**: Yes (verified via client session and SSR middleware proxy check)
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `members` (loads profile details)
+## Public
 
-### `/dashboard`
-- **Component**: [DashboardView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/DashboardView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `members`, `memberships`, `courses`, `course_enrollments`, `tasks`, `task_submissions`, `events`
+| Route | Purpose |
+|---|---|
+| `/login` | Shared member, admin and super-admin sign-in (Google or email). Defaults: `/dashboard`, `/admin`, `/super-admin` by trusted role. |
+| `/login/admin` | Compatibility redirect to `/login`; no separate sign-in form |
+| `/auth/callback` | Code exchange, then role-aware redirect. Return paths must be local and appropriate for the role. |
+| `/` | Redirects to `/dashboard` |
 
-### `/courses`
-- **Component**: [CoursesView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/CoursesView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `courses`, `course_enrollments`, `members`
+## Member area: `src/app/(member)/`
 
-### `/tasks`
-- **Component**: [TasksView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/TasksView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `tasks`, `task_submissions`, `members`
+Any signed-in, active account can use these routes.
 
-### `/events`
-- **Component**: [EventsView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/EventsView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `events`, `event_registrations`, `members`
+| Route | Purpose |
+|---|---|
+| `/dashboard` | Overview: status cards, required actions, recent activity, membership summary |
+| `/profile` | View your profile and profile completion |
+| `/profile/edit` | Edit the permitted profile fields and photo |
+| `/application` | Application status, step timeline, action required, start an application |
+| `/application/[id]` | Application detail, edit the draft or requested changes, submit |
+| `/membership` | Membership card, validity, renewal, history |
+| `/documents` | Required documents: upload, re-upload, view (signed URLs) |
+| `/notifications` | Tabs (All / Unread / Membership / Application / Documents / System), mark read |
+| `/settings` | Account, security (password for email accounts), session |
+| `/courses`, `/tasks`, `/events`, `/payments`, `/certificates`, `/community`, `/resources` | Existing program features, shown under "Programs" in the sidebar |
+| `/membership/register` | Redirects to `/application` |
 
-### `/payments`
-- **Component**: [PaymentsView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/PaymentsView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `payments`, `memberships`, `members`
+## Admin area: `src/app/admin/`
 
-### `/certificates`
-- **Component**: [CertificatesView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/CertificatesView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `certificates`, `courses`, `members`
+Limited to the `admin` and `super_admin` roles.
 
-### `/community`
-- **Component**: [CommunityView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/CommunityView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `community_posts`, `users`
+| Route | Purpose |
+|---|---|
+| `/admin` | KPIs, new members chart, application status, recent applications, pending actions |
+| `/admin/members` | Server-side search, filter, sort and pagination (`?q=&membership=&application=&sort=&desc=&page=`) |
+| `/admin/members/new` | Create a member via `POST /api/admin/members`. The allowed roles are checked on the server. |
+| `/admin/members/[memberId]` | Tabs: Overview, Profile, Application, Membership, Documents, Activity |
+| `/admin/applications` | Approval queue (`?tab=review\|changes\|approved\|rejected\|all`) |
+| `/admin/applications/[id]` | Review page with decisions: start review, approve, request changes, reject |
+| `/admin/documents` | Document review queue (`?tab=pending\|approved\|rejected\|all`) |
+| `/admin/reports` | Date-filtered charts and KPIs |
+| `/admin/memberships` and the Content & Operations pages | Existing admin tools |
+| `/admin/dashboard` | Redirects to `/admin` |
 
-### `/notifications`
-- **Component**: [NotificationsView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/NotificationsView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `notifications`
+**Rules the database enforces on decisions:**
 
-### `/profile`
-- **Component**: [ProfileView](file:///D:/FSP%20Dashboad/FSP%20Dashboad/src/components/pages/ProfileView.tsx)
-- **Authentication**: Yes
-- **Role Requirement**: member, trainer, admin, or super_admin
-- **Database Tables**: `members`, `users`
+- A reason is required to reject or to request changes.
+- Admins cannot review their own application or documents.
+- Approving an application activates the membership.
 
-### `/login`
-- **Component**: Login Page (client-side email/password authentication via Supabase)
-- **Authentication**: No
-- **Role Requirement**: None
+## Super admin area: `src/app/super-admin/`
 
----
+Limited to the `super_admin` role.
 
-## Administration Portal Routes
-
-All routes starting with `/admin` are protected by `src/proxy.ts` middleware and check database-level role attributes.
-
-### `/admin/dashboard`
-- **Component**: Admin Dashboard View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `members`, `memberships`, `payments`, `task_submissions`, `audit_logs`
-
-### `/admin/members`
-- **Component**: Admin Members Listing View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `members`, `users`, `audit_logs`
-
-### `/admin/memberships`
-- **Component**: Admin Memberships Management View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `memberships`, `members`, `audit_logs`
-
-### `/admin/courses`
-- **Component**: Admin Courses Management View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `courses`, `audit_logs`
-
-### `/admin/tasks`
-- **Component**: Admin Tasks Evaluation View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `tasks`, `task_submissions`, `audit_logs`
-
-### `/admin/events`
-- **Component**: Admin Events Management View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `events`, `event_registrations`, `audit_logs`
-
-### `/admin/payments`
-- **Component**: Admin Payments Reconciliation View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `payments`, `members`, `memberships`, `audit_logs`
-
-### `/admin/certificates`
-- **Component**: Admin Certificate Issuance View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `certificates`, `members`, `courses`, `audit_logs`
-
-### `/admin/resources`
-- **Component**: Admin Resource Files Upload View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `resources`, `courses`, `audit_logs`
-
-### `/admin/community`
-- **Component**: Admin Discussions Moderation View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `community_posts`, `users`, `audit_logs`
-
-### `/admin/notifications`
-- **Component**: Admin Alerts Dispatcher View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `notifications`, `users`, `audit_logs`
-
-### `/admin/audit-logs`
-- **Component**: Admin System Audit Logs View
-- **Authentication**: Yes
-- **Role Requirement**: admin, super_admin
-- **Database Tables**: `audit_logs`
+| Route | Purpose |
+|---|---|
+| `/super-admin` | Overview: role counts, sync issues, recent access and settings changes |
+| `/super-admin/admins` | Promote, demote, disable and enable admins (via `set_user_role`, reason required, audited) |
+| `/super-admin/users` | All users, with role and access changes |
+| `/super-admin/settings` | Membership term, renewal fee, other settings (audited) |
+| `/super-admin/audit-logs` | Full audit log with filters and a detail view (read-only, append-only) |
+| `/super-admin/security` | Sign-in sync issues, privileged accounts, recent access changes |

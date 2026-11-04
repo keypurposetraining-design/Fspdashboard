@@ -92,7 +92,7 @@ export default function AdminSettings() {
     <div className="space-y-6 max-w-4xl">
       {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">System Settings</h1>
+        <h1 className="fsp-dot text-2xl font-black text-slate-900 tracking-tight">System Settings</h1>
         <p className="text-sm text-slate-500 font-medium">Configure administrator preferences, customize platform credentials, and check system environment.</p>
       </div>
 

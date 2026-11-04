@@ -1,162 +1,289 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { Download, BarChart2, RefreshCcw } from "lucide-react";
+import React, { useState } from "react";
+import { CalendarClock, CalendarX, Percent, UserPlus } from "lucide-react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { LoadingState, ErrorState } from "@/components/ui/States";
+import { TextField } from "@/components/ui/Form";
+import { BarList, ChartCard, ColumnChart, KpiCard, SERIES_COLORS, monthLabel, type BarListItem } from "@/components/charts/Charts";
+import { isoDay, monthStartUtc, todayUtc } from "@/components/admin-ui/format";
+import { useAsync } from "@/lib/useAsync";
+import { getDashboardStats, getMonthlySeries } from "@/lib/data/admin";
+import { DOCUMENT_STATUS, MEMBERSHIP_STATUS } from "@/lib/status";
+import type { DocumentStatus, EffectiveMembershipStatus } from "@/lib/data/types";
+import { cn } from "@/lib/utils";
 
-export default function AdminReports() {
-  const supabase = createClient();
-  const [loading, setLoading] = useState(true);
-  const [reportData, setReportData] = useState<any[]>([]);
-  const [membershipsCount, setMembershipsCount] = useState({ active: 0, pending: 0, expired: 0 });
-  const [revenueTotal, setRevenueTotal] = useState(0);
-  const [enrollmentsCount, setEnrollmentsCount] = useState(0);
-  const [certificatesCount, setCertificatesCount] = useState(0);
+type Preset = "3" | "6" | "12" | "custom";
+const PRESETS: { key: Preset; label: string }[] = [
+  { key: "3", label: "3 months" },
+  { key: "6", label: "6 months" },
+  { key: "12", label: "12 months" },
+  { key: "custom", label: "Custom" },
+];
+const MAX_RANGE_DAYS = 3660; // admin_monthly_series rejects longer ranges
 
-  useEffect(() => {
-    fetchReportStats();
-  }, []);
+const MEMBERSHIP_ORDER: EffectiveMembershipStatus[] = ["active", "pending", "expired", "suspended", "cancelled", "none"];
+const DOCUMENT_ORDER: DocumentStatus[] = ["pending", "approved", "rejected"];
 
-  async function fetchReportStats() {
-    try {
-      setLoading(true);
-      const [membershipsRes, paymentsRes, enrollmentsRes, certsRes] = await Promise.all([
-        supabase.from("memberships").select("id, status"),
-        supabase.from("payments").select("id, amount, currency, status, payment_date, members(first_name, last_name)"),
-        supabase.from("course_enrollments").select("id"),
-        supabase.from("certificates").select("id")
-      ]);
+function resolveRange(preset: Preset, from: string, to: string): { from: string; to: string; error: string | null } {
+  if (preset !== "custom") {
+    return { from: isoDay(monthStartUtc(Number(preset) - 1)), to: isoDay(todayUtc()), error: null };
+  }
+  if (!from || !to) return { from, to, error: "Choose both a start and an end date." };
+  if (from > to) return { from, to, error: "The start date must be on or before the end date." };
+  const days = (Date.parse(to) - Date.parse(from)) / 86_400_000;
+  if (days > MAX_RANGE_DAYS) return { from, to, error: "Choose a range of 10 years or less." };
+  return { from, to, error: null };
+}
 
-      if (membershipsRes.error) throw membershipsRes.error;
-      if (paymentsRes.error) throw paymentsRes.error;
-      if (enrollmentsRes.error) throw enrollmentsRes.error;
-      if (certsRes.error) throw certsRes.error;
+export default function AdminReportsPage() {
+  const [preset, setPreset] = useState<Preset>("6");
+  const [customFrom, setCustomFrom] = useState(() => isoDay(monthStartUtc(5)));
+  const [customTo, setCustomTo] = useState(() => isoDay(todayUtc()));
+  const range = resolveRange(preset, customFrom, customTo);
 
-      // Aggregations
-      const active = membershipsRes.data?.filter(m => m.status === "active").length || 0;
-      const pending = membershipsRes.data?.filter(m => m.status === "pending").length || 0;
-      const expired = membershipsRes.data?.filter(m => m.status === "expired" || m.status === "cancelled").length || 0;
-      setMembershipsCount({ active, pending, expired });
+  // Date-only strings parse as UTC midnight, so toISOString() keeps the same day.
+  const series = useAsync(
+    () => getMonthlySeries(new Date(range.from), new Date(range.to)),
+    [range.from, range.to],
+    !range.error
+  );
+  const stats = useAsync(getDashboardStats, []);
 
-      const totalRev = paymentsRes.data
-        ?.filter(p => p.status === "succeeded")
-        .reduce((sum, p) => sum + Number(p.amount), 0) || 0;
-      setRevenueTotal(totalRev);
+  const header = (
+    <PageHeader title="Reports" description="Membership growth, application outcomes and document reviews." />
+  );
 
-      setEnrollmentsCount(enrollmentsRes.data?.length || 0);
-      setCertificatesCount(certsRes.data?.length || 0);
+  const filters = (
+    <div className="mb-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xs">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+        <div role="radiogroup" aria-label="Date range" className="flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              role="radio"
+              aria-checked={preset === p.key}
+              onClick={() => setPreset(p.key)}
+              className={cn(
+                "h-10 rounded-lg border px-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-navy)]",
+                preset === p.key
+                  ? "border-[var(--brand-navy)] bg-[var(--brand-navy)] text-white"
+                  : "border-[var(--card-border)] bg-white text-[var(--foreground)] hover:bg-[var(--muted-light)]"
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {preset === "custom" && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-96">
+            <TextField
+              label="From"
+              type="date"
+              value={customFrom}
+              max={customTo || undefined}
+              onChange={(e) => setCustomFrom(e.target.value)}
+            />
+            <TextField
+              label="To"
+              type="date"
+              value={customTo}
+              min={customFrom || undefined}
+              onChange={(e) => setCustomTo(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+      {range.error && (
+        <p role="alert" className="mt-3 text-sm font-medium text-red-700">
+          {range.error}
+        </p>
+      )}
+    </div>
+  );
 
-      // Generate reports list
-      const paymentsList = paymentsRes.data || [];
-      setReportData(paymentsList);
-    } catch (err: any) {
-      console.error("Error fetching reports data:", err.message);
-    } finally {
-      setLoading(false);
-    }
+  if ((series.error && !series.data) || (stats.error && !stats.data)) {
+    return (
+      <>
+        {header}
+        {filters}
+        <ErrorState
+          error={series.error ?? stats.error}
+          onRetry={() => {
+            series.reload();
+            stats.reload();
+          }}
+        />
+      </>
+    );
+  }
+  if ((!series.data && !range.error) || !stats.data) {
+    return (
+      <>
+        {header}
+        {filters}
+        <LoadingState variant="cards" label="Loading reports" />
+      </>
+    );
   }
 
-  // Export to CSV
-  const handleExportCSV = () => {
-    if (reportData.length === 0) return;
+  const rows = series.data ?? [];
+  const s = stats.data;
+  const chartRows = rows.map((r) => ({
+    label: monthLabel(r.month),
+    new_members: r.new_members,
+    submitted: r.applications_submitted,
+    approved: r.applications_approved,
+    rejected: r.applications_rejected,
+    documents: r.documents_uploaded,
+  }));
+  const sum = (k: keyof (typeof chartRows)[number]) => chartRows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+  const totalNew = sum("new_members");
+  const totalApproved = sum("approved");
+  const totalRejected = sum("rejected");
+  const decided = totalApproved + totalRejected;
+  const periodLabel = chartRows.length
+    ? chartRows.length === 1
+      ? chartRows[0].label
+      : `${chartRows[0].label} – ${chartRows[chartRows.length - 1].label}`
+    : "Selected period";
 
-    // Headers
-    const headers = ["Payment ID", "Member Name", "Amount", "Currency", "Status", "Date"];
-    const rows = reportData.map(p => [
-      p.id,
-      p.members ? `${p.members.first_name || ""} ${p.members.last_name || ""}` : "N/A",
-      p.amount,
-      p.currency,
-      p.status,
-      new Date(p.payment_date).toLocaleDateString()
-    ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(","), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `FSP_Payments_Report_${new Date().toISOString().substring(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const membershipItems: BarListItem[] = MEMBERSHIP_ORDER.map((k) => ({
+    key: k,
+    label: k === "none" ? "No membership" : MEMBERSHIP_STATUS[k].label,
+    value: k === "none" ? s.members_without_membership : s.membership[k] ?? 0,
+    tone: MEMBERSHIP_STATUS[k].tone,
+    icon: MEMBERSHIP_STATUS[k].icon,
+    href: `/admin/members?membership=${k}`,
+  }));
+  const documentItems: BarListItem[] = DOCUMENT_ORDER.map((k) => ({
+    key: k,
+    label: DOCUMENT_STATUS[k].label,
+    value: s.documents[k] ?? 0,
+    tone: DOCUMENT_STATUS[k].tone,
+    icon: DOCUMENT_STATUS[k].icon,
+    href: `/admin/documents?tab=${k}`,
+  }));
 
   return (
-    <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">System Reports &amp; Analytics</h1>
-          <p className="text-sm text-slate-500 font-medium">Analyze member registrations growth, revenue aggregation, and download ledgers.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchReportStats} icon={<RefreshCcw className="w-4 h-4" />}>
-            Refresh
-          </Button>
-          <Button size="sm" onClick={handleExportCSV} disabled={reportData.length === 0} icon={<Download className="w-4 h-4" />}>
-            Export CSV
-          </Button>
-        </div>
-      </div>
+    <>
+      {header}
+      {filters}
 
-      {/* METRICS SUMMARY */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-white border border-slate-200">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Active Memberships</span>
-          <span className="text-2xl font-black text-slate-900 block mt-1">{membershipsCount.active}</span>
-          <span className="text-xs text-slate-500 mt-1 block">Pending: {membershipsCount.pending} | Expired: {membershipsCount.expired}</span>
-        </Card>
-        <Card className="p-4 bg-white border border-slate-200">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Revenue Recieved</span>
-          <span className="text-2xl font-black text-slate-900 block mt-1">${revenueTotal.toLocaleString()}</span>
-          <span className="text-xs text-emerald-600 font-medium mt-1 block">100% database validated</span>
-        </Card>
-        <Card className="p-4 bg-white border border-slate-200">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Course Enrollments</span>
-          <span className="text-2xl font-black text-slate-900 block mt-1">{enrollmentsCount}</span>
-          <span className="text-xs text-slate-500 mt-1 block">Active enrollments count</span>
-        </Card>
-        <Card className="p-4 bg-white border border-slate-200">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Accreditation Certs Issued</span>
-          <span className="text-2xl font-black text-slate-900 block mt-1">{certificatesCount}</span>
-          <span className="text-xs text-slate-500 mt-1 block">Total issued credentials</span>
-        </Card>
-      </div>
+      <div className={cn("space-y-6", series.loading && "opacity-70 transition-opacity")} aria-busy={series.loading}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiCard
+            label="New members"
+            value={range.error ? "—" : totalNew}
+            context={periodLabel}
+            icon={<UserPlus className="h-5 w-5" />}
+            tone="info"
+          />
+          <KpiCard
+            label="Approval rate"
+            value={!range.error && decided > 0 ? `${Math.round((totalApproved / decided) * 100)}%` : "—"}
+            context={
+              !range.error && decided > 0
+                ? `${totalApproved} approved, ${totalRejected} rejected`
+                : "No applications were decided in this period"
+            }
+            icon={<Percent className="h-5 w-5" />}
+            tone="success"
+          />
+          <KpiCard
+            label="Expired memberships"
+            value={s.membership.expired ?? 0}
+            context="Current total"
+            icon={<CalendarX className="h-5 w-5" />}
+            tone="danger"
+            href="/admin/members?membership=expired"
+          />
+          <KpiCard
+            label="Expiring in 30 days"
+            value={s.expiring_30_days}
+            context="Active memberships ending soon"
+            icon={<CalendarClock className="h-5 w-5" />}
+            tone="warning"
+            href="/admin/memberships"
+          />
+        </div>
 
-      {/* DETAILED TRANSACTION LEDGER */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-bold">Transaction Ledgers Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="py-12 text-center text-slate-500 font-medium">Aggregating report statistics...</div>
-          ) : reportData.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 font-medium">No transactions found to report.</div>
-          ) : (
-            <Table
-              columns={[
-                { header: "Transaction ID", accessor: "id", render: (row) => <span className="font-mono text-xs">{row.id}</span> },
-                { header: "Member Name", accessor: "member", render: (row) => row.members ? `${row.members.first_name || ""} ${row.members.last_name || ""}` : "N/A" },
-                { header: "Amount Recieved", accessor: "amount", render: (row) => `$${Number(row.amount).toFixed(2)}` },
-                { header: "Status", accessor: "status", render: (row) => (
-                  <Badge variant={row.status === "succeeded" ? "success" : row.status === "pending" ? "warning" : "danger"}>
-                    {row.status}
-                  </Badge>
-                ) },
-                { header: "Processed At", accessor: "payment_date", render: (row) => new Date(row.payment_date).toLocaleString() }
-              ]}
-              data={reportData}
-            />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {!range.error && (
+            <>
+              <ChartCard
+                title="Member growth"
+                description={`New members per month · ${periodLabel}`}
+                isEmpty={totalNew === 0}
+                empty={<p className="py-10 text-center text-sm text-[var(--muted)]">No new members in this period.</p>}
+                table={{ columns: ["Month", "New members"], rows: chartRows.map((r) => [r.label, r.new_members]) }}
+              >
+                <ColumnChart
+                  data={chartRows}
+                  series={[{ key: "new_members", label: "New members", color: SERIES_COLORS.blue }]}
+                  valueLabel="New members"
+                />
+              </ChartCard>
+
+              <ChartCard
+                title="Applications over time"
+                description={`Submitted and decided per month · ${periodLabel}`}
+                isEmpty={sum("submitted") + decided === 0}
+                empty={<p className="py-10 text-center text-sm text-[var(--muted)]">No application activity in this period.</p>}
+                table={{
+                  columns: ["Month", "Submitted", "Approved", "Rejected"],
+                  rows: chartRows.map((r) => [r.label, r.submitted, r.approved, r.rejected]),
+                }}
+              >
+                <ColumnChart
+                  data={chartRows}
+                  series={[
+                    { key: "submitted", label: "Submitted", color: SERIES_COLORS.blue },
+                    { key: "approved", label: "Approved", color: SERIES_COLORS.green },
+                    { key: "rejected", label: "Rejected", color: SERIES_COLORS.red },
+                  ]}
+                  valueLabel="Applications"
+                />
+              </ChartCard>
+
+              <ChartCard
+                title="Documents uploaded"
+                description={`Uploads per month · ${periodLabel}`}
+                isEmpty={sum("documents") === 0}
+                empty={<p className="py-10 text-center text-sm text-[var(--muted)]">No documents uploaded in this period.</p>}
+                table={{ columns: ["Month", "Documents"], rows: chartRows.map((r) => [r.label, r.documents]) }}
+              >
+                <ColumnChart
+                  data={chartRows}
+                  series={[{ key: "documents", label: "Documents uploaded", color: SERIES_COLORS.blue }]}
+                  valueLabel="Documents uploaded"
+                />
+              </ChartCard>
+            </>
           )}
-        </CardContent>
-      </Card>
-    </div>
+
+          <ChartCard
+            title="Membership status"
+            description="All members today, by latest membership"
+            isEmpty={membershipItems.every((i) => i.value === 0)}
+            empty={<p className="py-10 text-center text-sm text-[var(--muted)]">No members yet.</p>}
+            table={{ columns: ["Status", "Members"], rows: membershipItems.map((i) => [i.label, i.value]) }}
+          >
+            <BarList items={membershipItems} />
+          </ChartCard>
+
+          <ChartCard
+            title="Document review status"
+            description="All uploaded documents today"
+            isEmpty={documentItems.every((i) => i.value === 0)}
+            empty={<p className="py-10 text-center text-sm text-[var(--muted)]">No documents uploaded yet.</p>}
+            table={{ columns: ["Status", "Documents"], rows: documentItems.map((i) => [i.label, i.value]) }}
+          >
+            <BarList items={documentItems} />
+          </ChartCard>
+        </div>
+      </div>
+    </>
   );
 }

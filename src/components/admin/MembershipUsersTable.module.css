@@ -1,0 +1,61 @@
+.container {
+  font-family: var(--font-geist-sans), "Segoe UI", Arial, sans-serif;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e9edf2;
+}
+
+.heading h2 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.5; }
+.heading p { margin: 3px 0 0; color: #64748b; font-size: 12px; line-height: 1.5; }
+.count { padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 8px; color: #64748b; font-size: 12px; white-space: nowrap; }
+.scroll { overflow-x: auto; }
+.scroll:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: -2px; }
+.table { width: 100%; min-width: 1080px; border-collapse: collapse; table-layout: fixed; text-align: left; }
+.table th { padding: 14px 20px; background: #f8fafc; color: #64748b; border-bottom: 1px solid #e9edf2; font-size: 11px; line-height: 1.5; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.table td { padding: 22px 20px; border-bottom: 1px solid #edf0f4; vertical-align: middle; font-size: 13px; line-height: 1.55; }
+.table tbody tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover { background: #fafbfd; }
+.participantColumn { width: 23%; }
+.dateColumn { width: 13%; }
+.membershipColumn { width: 17%; }
+.statusColumn { width: 13%; }
+.actionsColumn { width: 21%; }
+.identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.avatar { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: #eef2fc; color: var(--brand-navy); font-size: 12px; font-weight: 600; }
+.identityText { min-width: 0; }
+.name { color: #0f172a; font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.email { margin-top: 2px; color: #64748b; font-size: 12px; overflow-wrap: anywhere; }
+.role { display: inline-block; margin-top: 6px; padding: 1px 6px; border-radius: 4px; background: #f1f5f9; color: #64748b; font-size: 10px; line-height: 1.6; font-weight: 500; }
+.date { display: block; color: #334155; font-size: 12px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.secondary { display: block; margin-top: 3px; color: #64748b; font-size: 12px; line-height: 1.6; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.provider { display: inline-block; margin-top: 6px; color: #64748b; font-size: 12px; }
+.term { display: grid; grid-template-columns: 34px 1fr; gap: 4px 6px; align-items: baseline; }
+.termLabel { color: #94a3b8; font-size: 11px; }
+.remaining { margin-top: 7px; color: #64748b; font-size: 12px; }
+.empty { color: #94a3b8; font-size: 12px; }
+.status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; color: #64748b; font-size: 12px; line-height: 1.5; font-weight: 500; white-space: nowrap; }
+.status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.active { background: #ecfdf3; border-color: #c9ead6; color: #167044; }
+.pending { background: #fff8e7; border-color: #f2e3b8; color: #946715; }
+.expired, .suspended { background: #fff1f2; border-color: #f5d6db; color: #b34753; }
+.primaryActions, .secondaryActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.secondaryActions { margin-top: 10px; gap: 12px; }
+.action { display: inline-flex; justify-content: center; align-items: center; min-height: 32px; padding: 6px 10px; border: 1px solid #dce2eb; border-radius: 7px; background: #fff; color: #475569; font: inherit; font-size: 12px; font-weight: 500; line-height: 1.5; white-space: nowrap; cursor: pointer; text-decoration: none; }
+.primary { border-color: var(--brand-navy); background: var(--brand-navy); color: #fff; }
+.action:hover { background: #f1f5f9; }
+.primary:hover { background: var(--brand-navy-hover); }
+.textAction { padding: 0; border: 0; background: transparent; color: #64748b; font: inherit; font-size: 12px; line-height: 1.5; text-decoration: none; cursor: pointer; }
+.textAction:hover { color: var(--brand-navy); text-decoration: underline; }
+.action:focus-visible, .textAction:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: 3px; }
+
+@media (max-width: 640px) {
+  .heading { padding: 16px; align-items: flex-start; }
+}

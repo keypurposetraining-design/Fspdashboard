@@ -37,7 +37,7 @@ export default function AdminNotifications() {
     try {
       setLoading(true);
       const [notifsRes, usersRes] = await Promise.all([
-        supabase.from("notifications").select("id, type, payload, created_at, users(email)").order("created_at", { ascending: false }).limit(50),
+        supabase.from("notifications").select("id, type, payload, created_at, users!notifications_user_id_fkey(email)").order("created_at", { ascending: false }).limit(50),
         supabase.from("users").select("id, name, email")
       ]);
 
@@ -122,7 +122,7 @@ export default function AdminNotifications() {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">System Broadcasts</h1>
+          <h1 className="fsp-dot text-2xl font-black text-slate-900 tracking-tight">System Broadcasts</h1>
           <p className="text-sm text-slate-500 font-medium">Broadcast alerts, warning, or information triggers to selected or all FSP members.</p>
         </div>
         <Button size="sm" onClick={() => setIsSendModalOpen(true)} icon={<Send className="w-4 h-4" />}>

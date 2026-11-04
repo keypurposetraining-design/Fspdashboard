@@ -28,17 +28,17 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantStyles = {
     primary:
-      "bg-[#0F4CFF] text-white hover:bg-[#0D41DB] shadow-md shadow-blue-500/20 focus:ring-[#0F4CFF]",
+      "bg-[var(--brand-navy)] text-white hover:bg-[var(--brand-navy-hover)] shadow-md shadow-[var(--brand-navy)]/20 focus:ring-[var(--brand-navy)]",
     secondary:
-      "bg-[#FF7A00] text-white hover:bg-[#E06C00] shadow-md shadow-orange-500/20 focus:ring-[#FF7A00]",
+      "bg-[var(--brand-gold)] text-[var(--brand-navy)] hover:bg-[var(--brand-gold-hover)] shadow-md shadow-[var(--brand-gold)]/20 focus:ring-[var(--brand-gold)]",
     outline:
-      "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 focus:ring-[#0F4CFF]",
+      "border border-[var(--card-border)] bg-white text-[var(--foreground)] hover:bg-[var(--muted-light)] hover:border-[var(--muted)] focus:ring-[var(--brand-navy)]",
     ghost:
-      "text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-slate-400",
+      "text-[var(--muted)] hover:bg-[var(--muted-light)] hover:text-[var(--foreground)] focus:ring-[var(--muted)]",
     danger:
-      "bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-500/20 focus:ring-rose-600",
+      "bg-[var(--danger)] text-white hover:bg-[var(--danger)]/90 shadow-md shadow-[var(--danger)]/20 focus:ring-[var(--danger)]",
     soft:
-      "bg-blue-50 text-[#0F4CFF] hover:bg-blue-100 focus:ring-[#0F4CFF]",
+      "bg-[var(--brand-navy-soft)] text-[var(--brand-navy)] hover:bg-[var(--brand-navy-light)]/50 focus:ring-[var(--brand-navy)]",
   };
 
   const sizeStyles = {

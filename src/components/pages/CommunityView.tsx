@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toDataError } from "@/lib/data/errors";
 import { useAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -21,6 +22,7 @@ export const CommunityView: React.FC = () => {
   const { user } = useAuth();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [posts, setPosts] = useState<any[]>([]);
   const [newContent, setNewContent] = useState("");
@@ -32,15 +34,18 @@ export const CommunityView: React.FC = () => {
 
   async function fetchPosts() {
     try {
-      setLoading(true);
+      setLoading(true); setLoadError(null);
       const { data, error } = await supabase
         .from("community_posts")
+        // community_posts has three FKs to users (user_id, created_by,
+        // updated_by), so the embed must name the one we mean: the author.
+        // Without the hint PostgREST refuses the request with PGRST201.
         .select(`
           id,
           content,
           created_at,
           parent_post_id,
-          users (
+          users!community_posts_user_id_fkey (
             name,
             role
           )
@@ -50,7 +55,8 @@ export const CommunityView: React.FC = () => {
       if (error) throw error;
       setPosts(data || []);
     } catch (err: any) {
-      console.error("Error loading community posts:", err.message);
+      // toDataError logs the raw error for developers; no second console.error.
+      setLoadError(toDataError(err, "community posts").message);
     } finally {
       setLoading(false);
     }
@@ -93,10 +99,10 @@ export const CommunityView: React.FC = () => {
               FSP FACILITATOR LOUNGE
             </Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="fsp-dot text-2xl sm:text-3xl font-black text-[var(--foreground)] tracking-tight">
             Community &amp; Peer Lounge
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-[var(--muted)] mt-1">
             Connect, exchange workshop strategies, and collaborate with certified facilitators worldwide.
           </p>
         </div>
@@ -108,10 +114,10 @@ export const CommunityView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Col – Post Creator & Feed */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-2 border-blue-100 bg-blue-50/20">
+          <Card className="border-2 border-[var(--brand-navy-light)] bg-[var(--brand-navy)]/5">
             <form onSubmit={handleCreatePost} className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#0F4CFF]" />
+              <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[var(--brand-navy)]" />
                 Share a question, template, or case study
               </h3>
               <textarea
@@ -119,7 +125,7 @@ export const CommunityView: React.FC = () => {
                 onChange={e => setNewContent(e.target.value)}
                 placeholder="What facilitation challenge or wins are on your mind today?"
                 rows={3}
-                className="w-full p-3 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-[#0F4CFF] resize-none"
+                className="w-full p-3 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl focus:outline-none focus:border-[var(--brand-navy)] resize-none"
                 required
               />
               <div className="flex items-center justify-end pt-1">
@@ -131,34 +137,35 @@ export const CommunityView: React.FC = () => {
           </Card>
 
           {/* Posts Feed */}
+          {loadError && <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-[var(--danger-border)] bg-[var(--danger-light)] p-4 text-sm font-medium">{loadError}</div>}
           {loading ? (
-            <div className="py-6 text-center text-slate-500 font-medium">Loading forum feeds...</div>
+            <div className="py-6 text-center text-[var(--muted)] font-medium">Loading forum feeds...</div>
           ) : posts.length === 0 ? (
-            <div className="py-6 text-center text-slate-500">No discussions started yet. Be the first!</div>
+            <div className="py-6 text-center text-[var(--muted)]">No discussions started yet. Be the first!</div>
           ) : (
             <div className="space-y-4">
               {posts.map((post) => (
-                <Card key={post.id} className="space-y-4 p-5 bg-white border border-slate-200">
+                <Card key={post.id} className="space-y-4 p-5 bg-[var(--card-bg)] border border-[var(--card-border)]">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 uppercase">
+                      <div className="w-10 h-10 rounded-full bg-[var(--muted-light)] flex items-center justify-center font-bold text-[var(--muted)] uppercase">
                         {post.users?.name?.charAt(0) || "U"}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-bold text-slate-900">
+                          <h4 className="text-sm font-bold text-[var(--foreground)]">
                             {post.users?.name || "Anonymous"}
                           </h4>
                           <Badge variant="pro" size="sm">
                             {post.users?.role || "Member"}
                           </Badge>
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">Posted: {new Date(post.created_at).toLocaleString()}</p>
+                        <p className="text-xs text-[var(--muted)] mt-0.5">Posted: {new Date(post.created_at).toLocaleString()}</p>
                       </div>
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-xs text-[var(--muted)] leading-relaxed whitespace-pre-wrap">
                     {post.content}
                   </p>
                 </Card>
@@ -173,7 +180,7 @@ export const CommunityView: React.FC = () => {
             <CardHeader>
               <CardTitle className="text-sm font-bold">Lounge Guidelines</CardTitle>
             </CardHeader>
-            <CardContent className="text-xs text-slate-500 space-y-2 leading-relaxed">
+            <CardContent className="text-xs text-[var(--muted)] space-y-2 leading-relaxed">
               <p>1. Be constructive and support other peers.</p>
               <p>2. Share canvases, templates, and Miro links.</p>
               <p>3. Do not post spam or unsolicited sales offers.</p>

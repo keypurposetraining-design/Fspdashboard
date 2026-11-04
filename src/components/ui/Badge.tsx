@@ -19,22 +19,22 @@ export const Badge: React.FC<BadgeProps> = ({
   const baseStyles = "inline-flex items-center font-medium rounded-full tracking-tight transition-colors";
 
   const variantStyles = {
-    primary: "bg-blue-50 text-[#0F4CFF] border border-blue-200/60",
-    secondary: "bg-orange-50 text-[#FF7A00] border border-orange-200/60",
-    success: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
-    warning: "bg-amber-50 text-amber-700 border border-amber-200/60",
-    danger: "bg-rose-50 text-rose-700 border border-rose-200/60",
-    neutral: "bg-slate-100 text-slate-700 border border-slate-200",
-    pro: "bg-gradient-to-r from-[#0F4CFF] to-blue-700 text-white shadow-xs font-semibold px-2.5 py-0.5",
+    primary: "bg-[var(--brand-navy-soft)] text-[var(--brand-navy)] border border-[var(--brand-navy)]/20",
+    secondary: "bg-[var(--brand-gold-light)] text-[var(--brand-gold-ink)] border border-[var(--brand-gold)]/20",
+    success: "bg-[var(--success-light)] text-[var(--success)] border border-[var(--success-border)]/60",
+    warning: "bg-[var(--warning-light)] text-[var(--warning)] border border-[var(--warning-border)]/60",
+    danger: "bg-[var(--danger-light)] text-[var(--danger)] border border-[var(--danger-border)]/60",
+    neutral: "bg-[var(--muted-light)] text-[var(--muted)] border border-[var(--muted-border)]",
+    pro: "bg-gradient-to-r from-[var(--brand-navy)] to-[var(--brand-navy-secondary)] text-white shadow-xs font-semibold px-2.5 py-0.5",
   };
 
   const dotStyles = {
-    primary: "bg-[#0F4CFF]",
-    secondary: "bg-[#FF7A00]",
-    success: "bg-emerald-500",
-    warning: "bg-amber-500",
-    danger: "bg-rose-500",
-    neutral: "bg-slate-400",
+    primary: "bg-[var(--brand-navy)]",
+    secondary: "bg-[var(--brand-gold)]",
+    success: "bg-[var(--success)]",
+    warning: "bg-[var(--warning)]",
+    danger: "bg-[var(--danger)]",
+    neutral: "bg-[var(--muted)]",
     pro: "bg-white",
   };
 

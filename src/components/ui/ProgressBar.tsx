@@ -28,21 +28,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   };
 
   const fillColors = {
-    primary: "bg-gradient-to-r from-[#0F4CFF] to-blue-600",
-    secondary: "bg-gradient-to-r from-[#FF7A00] to-amber-500",
-    success: "bg-gradient-to-r from-emerald-500 to-teal-500",
-    warning: "bg-gradient-to-r from-amber-500 to-orange-500",
+    primary: "bg-gradient-to-r from-[var(--brand-navy)] to-[var(--brand-navy-secondary)]",
+    secondary: "bg-gradient-to-r from-[var(--brand-gold)] to-[var(--brand-gold-hover)]",
+    success: "bg-gradient-to-r from-[var(--success)] to-[var(--info)]",
+    warning: "bg-gradient-to-r from-[var(--warning)] to-[var(--danger)]",
   };
 
   return (
     <div className={twMerge(clsx("w-full space-y-1.5", className))} {...props}>
       {(label || showValue) && (
-        <div className="flex justify-between items-center text-xs font-medium text-slate-600 mb-1">
+        <div className="flex justify-between items-center text-xs font-medium text-[var(--muted)] mb-1">
           {label && <span>{label}</span>}
-          {showValue && <span className="font-semibold text-slate-900">{clampedValue}%</span>}
+          {showValue && <span className="font-semibold text-[var(--foreground)]">{clampedValue}%</span>}
         </div>
       )}
-      <div className={twMerge(clsx("w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50", heightStyles[size]))}>
+      <div className={twMerge(clsx("w-full bg-[var(--muted-light)] rounded-full overflow-hidden p-0.5 border border-[var(--card-border)]", heightStyles[size]))}>
         <div
           className={clsx(
             "h-full rounded-full transition-all duration-500 ease-out shadow-xs",
