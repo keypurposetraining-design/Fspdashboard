@@ -29,7 +29,7 @@ function harness() {
  };
  const code=ts.transpileModule(fs.readFileSync('src/components/auth/AuthProvider.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
  const mod={exports:{}};
- new Function('require','exports','module',code)(name=>name==='react'?mock:name==='@/lib/supabase'?{supabase:db}:name==='@/lib/activity-log'?{logMemberActivity:async()=>{}}:require(name),mod.exports,mod);
+ new Function('require','exports','module',code)(name=>name==='react'?mock:name==='@/lib/supabase'?{createClient:()=>db}:name==='@/lib/activity-log'?{logMemberActivity:async()=>{}}:require(name),mod.exports,mod);
  function value(){cursor=0;return mod.exports.AuthProvider({children:null}).props.value;}
  const initial=value();const cleanup=effects[0]();
  return {initial,value,calls,account,emit:(event,session)=>listener(event,session),resolve:()=>resolveUser({data:{id:account.id,email:account.email,name:'Test Admin',role:'admin'},error:null}),cleanup};

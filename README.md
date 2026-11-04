@@ -19,6 +19,10 @@ npm start
 
 Configure the same environment variables on your hosting provider. Configure Supabase Authentication redirect URLs for the deployed domain, including `/auth/callback`.
 
+See [Vercel deployment setup](docs/vercel-deployment.md) for environment variables,
+redeployment and Git repository configuration. Production builds validate required
+Supabase settings before compiling.
+
 ## Supabase setup
 
 Database changes are maintained in `database/migrations/` and applied separately through Supabase; pushing this repository does not apply SQL automatically. For an existing installation, apply missing numbered migrations in order. Review the relevant guide in `docs/` before setting up a new database.

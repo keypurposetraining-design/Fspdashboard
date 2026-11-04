@@ -1,7 +1,7 @@
 "use client";
 // src/components/auth/AuthProvider.tsx
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { logMemberActivity } from '@/lib/activity-log';
 
@@ -70,11 +70,11 @@ const AuthContext = createContext<AuthContextProps>({
 const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & { membershipStatus: MembershipState | null }> => {
   // Use maybeSingle so that a missing row doesn't throw a PGRST116 error.
   // These lookups are independent; avoid two sequential network round trips.
-  const [userResult, memberResult] = await Promise.all([supabase
+  const [userResult, memberResult] = await Promise.all([createClient()
     .from('users')
     .select('id, email, role, name')
     .eq('id', supabaseUser.id)
-    .maybeSingle(), supabase.from('members').select('id, avatar_url')
+    .maybeSingle(), createClient().from('members').select('id, avatar_url')
       .eq('user_id', supabaseUser.id).order('created_at', { ascending: true })
       .limit(1).maybeSingle()]);
   let { data: userData } = userResult;
@@ -88,9 +88,9 @@ const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & 
   // If no matching public.users row, trigger self-healing sync via RPC
   if (!userData) {
     try {
-      const { data: syncRes, error: syncErr } = await supabase.rpc('sync_current_user');
+      const { data: syncRes, error: syncErr } = await createClient().rpc('sync_current_user');
       if (!syncErr && syncRes?.success) {
-        const { data: refetched } = await supabase
+        const { data: refetched } = await createClient()
           .from('users')
           .select('id, email, role, name')
           .eq('id', supabaseUser.id)
@@ -99,7 +99,7 @@ const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & 
           userData = refetched;
         }
         if (!memberProfile) {
-          const { data } = await supabase.from('members').select('id, avatar_url')
+          const { data } = await createClient().from('members').select('id, avatar_url')
             .eq('user_id', supabaseUser.id).order('created_at', { ascending: true }).limit(1).maybeSingle();
           memberProfile = data;
         }
@@ -135,7 +135,7 @@ const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<AuthUser & 
       if (!memberRec) {
         membershipStatus = 'none';
       } else {
-        const { data: membershipData, error: memErr } = await supabase
+        const { data: membershipData, error: memErr } = await createClient()
           .from('memberships')
           .select('status, end_date')
           .eq('member_id', memberRec.id)
@@ -181,7 +181,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Public refresh: re-reads the current session user. (Calling the internal
   // refreshUser without a user clears the session state, i.e. a UI sign-out.)
   const refreshCurrentUser = async () => {
-    const { data } = await supabase.auth.getUser();
+    const { data } = await createClient().auth.getUser();
     if (data.user) await refreshUser(data.user);
   };
 
@@ -225,7 +225,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
     const pending = new Set<ReturnType<typeof setTimeout>>();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = createClient().auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       if (newSession?.user) {
         // Leave the auth callback before invoking Supabase again: it holds
@@ -256,7 +256,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     setLoading(true);
-    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    const { error, data } = await createClient().auth.signInWithPassword({ email, password });
     if (error) {
       await logMemberActivity("AUTH_LOGIN_FAILED", { email });
       setLoading(false);
@@ -279,7 +279,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await createClient().auth.signInWithOAuth({
         provider: 'google',
         options: {
           // Server-side code exchange (src/app/auth/callback/route.ts) sets the
@@ -305,7 +305,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     setLoading(true);
     await logMemberActivity("AUTH_LOGOUT");
-    const { error } = await supabase.auth.signOut();
+    const { error } = await createClient().auth.signOut();
     if (error) {
       setLoading(false);
       throw error;
@@ -330,7 +330,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: string, password: string, name?: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await createClient().auth.signUp({
         email,
         password,
         options: {
@@ -351,14 +351,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const forgotPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await createClient().auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) throw error;
   };
 
   const updatePassword = async (newPassword: string) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const { error } = await createClient().auth.updateUser({ password: newPassword });
     if (error) throw error;
   };
 

@@ -9,7 +9,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -33,10 +33,10 @@ export default function ResetPasswordPage() {
   // so wait for it rather than assuming it is present on first render.
   useEffect(() => {
     let active = true;
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = createClient().auth.onAuthStateChange((_event, session) => {
       if (active && session?.user) setReady(true);
     });
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    createClient().auth.getSession().then(({ data: { session } }) => {
       if (active) setReady(Boolean(session?.user));
     });
     return () => {
