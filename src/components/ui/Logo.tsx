@@ -5,7 +5,7 @@ import Image from "next/image";
 
 export interface LogoProps {
   /** Variant of the logo */
-  variant?: "full" | "icon" | "text" | "compact";
+  variant?: "full" | "icon" | "text" | "compact" | "sidebar";
   /** Size of the logo */
   size?: "sm" | "md" | "lg" | "xl";
   /** Additional CSS classes */
@@ -67,6 +67,19 @@ export const Logo: React.FC<LogoProps> = ({
   );
 
   switch (variant) {
+    case "sidebar":
+      return (
+        <div className={`flex min-w-0 items-center gap-3 ${className}`}>
+          <div className="flex h-10 w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--brand-navy)] shadow-sm">
+            <Image src="/fsp-logo.png" alt={alt} width={84} height={56} preload unoptimized
+              className="h-[56px] w-[84px] max-w-none shrink-0 object-contain" />
+          </div>
+          <div className="min-w-0 leading-tight">
+            <span className="block text-xl font-bold tracking-tight text-[var(--brand-navy)]">FSP</span>
+            <span className="mt-0.5 block whitespace-nowrap text-[10px] font-medium tracking-wide text-[var(--muted)]">Facilitator Support</span>
+          </div>
+        </div>
+      );
     case "icon":
       return (
         <div className={`flex items-center justify-center ${className}`}>

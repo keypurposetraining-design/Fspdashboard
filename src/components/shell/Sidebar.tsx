@@ -50,8 +50,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         aria-label="Main navigation"
       >
         <div className="flex h-16 shrink-0 items-center justify-between border-b-[3px] border-[var(--brand-yellow)] px-4">
-          <Link href="/dashboard" aria-label="FSP home">
-            <Logo variant="full" size="sm" />
+          <Link href="/dashboard" aria-label="FSP home" className="min-w-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--brand-navy)]">
+            <Logo variant="sidebar" />
           </Link>
           <button
             type="button"
