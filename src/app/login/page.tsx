@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/Card';
 import Link from 'next/link';
-import { Logo } from '@/components/ui/Logo';
+import Image from 'next/image';
 
 const LoginPage = () => {
   const { user, login, loginWithGoogle, loading: authLoading } = useAuth();
@@ -67,11 +67,13 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4 py-8">
       <Card className="w-full max-w-md relative overflow-hidden p-6 shadow-xl border border-[var(--card-border)] border-t-[4px] border-t-[var(--brand-yellow)] bg-[var(--card-bg)] rounded-3xl">
         <CardHeader className="flex-col text-center">
-          <div className="flex justify-center mb-4">
-            <Logo variant="full" size="xl" alt="FSP Member Hub" />
+          <div className="mx-auto mb-4 w-fit overflow-hidden rounded-2xl bg-[var(--brand-navy)] px-2 shadow-sm">
+            <Image src="/fsp-logo.png" alt="FSP" width={156} height={104} preload unoptimized
+              className="h-auto w-[156px] object-contain"
+              style={{ clipPath: "inset(0 0 38% 0)", transform: "translateY(8%)" }} />
           </div>
           <CardTitle className="text-2xl font-black tracking-tight text-[var(--foreground)] fsp-dot">Sign in</CardTitle>
         </CardHeader>
@@ -175,6 +177,9 @@ const LoginPage = () => {
             New here? Create an account
           </Link>
         </CardFooter>
+        <nav aria-label="About and policies" className="mt-4 flex justify-center gap-4 text-xs text-[var(--muted)]">
+          <Link href="/about">About FSP</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link>
+        </nav>
       </Card>
     </div>
   );

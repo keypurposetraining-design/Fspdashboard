@@ -61,6 +61,7 @@ export const Logo: React.FC<LogoProps> = ({
       width={config.icon}
       height={config.icon}
       className="object-contain"
+      style={{ clipPath: "inset(0 0 38% 0)", transform: "translateY(8%)" }}
       priority
       unoptimized
     />
@@ -72,6 +73,7 @@ export const Logo: React.FC<LogoProps> = ({
         <div className={`flex min-w-0 items-center gap-3 ${className}`}>
           <div className="flex h-10 w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--brand-navy)] shadow-sm">
             <Image src="/fsp-logo.png" alt={alt} width={84} height={56} preload unoptimized
+              style={{ clipPath: "inset(0 0 38% 0)", transform: "translateY(8%)" }}
               className="h-[56px] w-[84px] max-w-none shrink-0 object-contain" />
           </div>
           <div className="min-w-0 leading-tight">

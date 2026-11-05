@@ -14,6 +14,10 @@ import { roleHome } from "@/lib/auth-redirect";
  * is enforced again by RLS and the SECURITY DEFINER RPCs.
  */
 const PUBLIC_PATHS = [
+  "/google4c0655104e7daccc.html",
+  "/about",
+  "/privacy",
+  "/terms",
   "/login",
   "/login/admin",
   "/auth/callback",

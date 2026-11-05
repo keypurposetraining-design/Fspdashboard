@@ -1,0 +1,16 @@
+import PublicInformation from "@/components/ui/PublicInformation";
+
+export const metadata = { title: "Privacy policy" };
+
+export default function PrivacyPage() {
+  return <PublicInformation title="Privacy policy">
+    <p>Last updated: 5 November 2026. This policy describes data processing within the FSP Community portal managed by Key Purpose Training Solutions. Contact: <a href="mailto:keypurposetraining@gmail.com">keypurposetraining@gmail.com</a>.</p>
+    <section><h2>Information used by the portal</h2><p>We process your account name, email, account identifier, and authentication records. If you add profile information, this may include a profile photo, phone number, address, occupation, and workplace. The portal also stores membership dates and status, program enrollments, task progress, notifications, and documents or payment receipts you submit. Activity records may include actions, timestamps, IP addresses, and browser information.</p></section>
+    <section><h2>Google account information</h2><p>When you choose Google sign-in, Google and Supabase provide information needed to identify and authenticate you, including your Google account identifier, email, name, and profile photo when available. We use this information for your FSP account and profile. The portal does not request access to your Gmail messages, Google Drive files, or Google password.</p></section>
+    <section><h2>Why this information is processed</h2><p>Information supports account access, profile management, membership administration, course enrollment and progress, payment review, support, and security investigations. Authorized administrators can review records relevant to managing members and programs.</p></section>
+    <section><h2>Service providers and access</h2><p>The portal uses Supabase for authentication, database records, and uploaded file storage, Vercel for hosting, and Google when you choose Google sign-in. These providers process information needed to deliver their services under their own terms and privacy policies. Processing may take place outside your country. Profile photos uploaded to the public avatar bucket are accessible through their public image URLs; avoid uploading sensitive material as a profile photo.</p></section>
+    <section><h2>Sessions and storage</h2><p>Authentication cookies and browser storage help maintain your sign-in session. Sign out when using a shared device. Account records and uploaded materials persist until removed; retention depends on account administration, support, security, and any applicable recordkeeping obligations. Contact us to request details about retention for your records.</p></section>
+    <section><h2>Your requests</h2><p>You can update supported profile fields in your account settings. Email us to request access, correction, deletion, or information about processing of your personal data. We may need to verify your identity before acting. Any records that must be retained will be explained when responding. You can also remove the Google connection in your Google Account settings; this does not itself delete your FSP account or its records.</p></section>
+    <section><h2>Updates</h2><p>Changes to this policy will be published on this page with an updated date. Contact us with questions before submitting sensitive documents.</p></section>
+  </PublicInformation>;
+}

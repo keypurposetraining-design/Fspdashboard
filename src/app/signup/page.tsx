@@ -72,7 +72,8 @@ export default function SignUpPage() {
       <Card hoverEffect={false} className="w-full max-w-md rounded-3xl border border-[var(--card-border)] border-t-[3px] border-t-[var(--brand-yellow)] bg-[var(--card-bg)] p-6 sm:p-8 shadow-xl">
         <header className="mb-6 flex flex-col items-center gap-4 text-center">
           <div className="overflow-hidden rounded-2xl bg-[var(--brand-navy)] px-2 shadow-sm">
-            <Image src="/fsp-logo.png" alt="FSP Catalyst Connect" width={156} height={104} preload unoptimized className="h-auto w-[156px] object-contain" />
+            <Image src="/fsp-logo.png" alt="FSP" width={156} height={104} preload unoptimized className="h-auto w-[156px] object-contain"
+              style={{ clipPath: "inset(0 0 38% 0)", transform: "translateY(8%)" }} />
           </div>
           <h1 className="text-2xl font-bold tracking-tight leading-tight">Create your account</h1>
         </header>
@@ -178,6 +179,9 @@ export default function SignUpPage() {
             Already have an account? Sign in
           </Link>
         </CardFooter>
+        <nav aria-label="About and policies" className="mt-4 flex justify-center gap-4 text-xs text-[var(--muted)]">
+          <Link href="/about">About FSP</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link>
+        </nav>
       </Card>
     </div>
   );
