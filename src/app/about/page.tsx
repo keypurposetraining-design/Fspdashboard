@@ -1,7 +1,10 @@
 import PublicInformation from "@/components/ui/PublicInformation";
 import Link from "next/link";
 
-export const metadata = { title: "About FSP Community" };
+export const metadata = {
+  title: { absolute: "FSP Community" },
+  description: "FSP Community, managed by Key Purpose Training Solutions, provides membership management, program enrollments, course tasks, and account notifications for the Facilitator Support Program.",
+};
 
 export default function AboutPage() {
   return <PublicInformation title="FSP Community">
