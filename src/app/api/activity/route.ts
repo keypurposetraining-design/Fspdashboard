@@ -3,11 +3,20 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
+    const body: unknown = await request.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "A JSON activity object is required" }, { status: 400 });
+    }
+    const { action, details } = body as Record<string, unknown>;
+    if (typeof action !== "string" || !action.trim() || action.length > 255 ||
+        (details !== undefined && (details === null || typeof details !== "object" || Array.isArray(details)))) {
+      return NextResponse.json({ error: "Provide a valid action and details object" }, { status: 400 });
+    }
+    const metadata = (details ?? {}) as Record<string, unknown>;
     const supabase = await createClient();
-    const { action, details } = await request.json();
 
     const headers = request.headers;
-    const ipAddress = headers.get("x-forwarded-for") || "127.0.0.1";
+    const ipAddress = headers.get("x-forwarded-for")?.split(",")[0].trim().slice(0, 45) || "127.0.0.1";
     const userAgent = headers.get("user-agent") || "";
 
     // For AUTH_LOGIN_FAILED, write log anonymously without auth session context.
@@ -18,7 +27,7 @@ export async function POST(request: Request) {
           action: "AUTH_LOGIN_FAILED",
           ip_address: ipAddress,
           user_agent: userAgent,
-          metadata: { email: details?.email || "anonymous" },
+          metadata: { email: typeof metadata.email === "string" ? metadata.email.slice(0, 255) : "anonymous" },
           created_at: new Date().toISOString()
         });
 
@@ -56,7 +65,7 @@ export async function POST(request: Request) {
         action: action,
         ip_address: ipAddress,
         user_agent: userAgent,
-        metadata: details || {},
+        metadata,
         created_at: new Date().toISOString()
       });
 
@@ -66,8 +75,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error("Fatal activity logging failure:", err.message);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    console.error("Fatal activity logging failure:", err instanceof Error ? err.message : "Unknown error");
+    return NextResponse.json({ error: "Activity logging failed" }, { status: 500 });
   }
 }
