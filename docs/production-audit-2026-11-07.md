@@ -32,6 +32,15 @@ Application checks and isolated workflow tests pass. Live Supabase setup and liv
 
 ## Live-only work still blocked
 
+### Authenticated live test update
+
+- Disposable-account credentials are now saved privately and all three accounts authenticate successfully.
+- Admin and Super Admin passed actual own-profile role, active-status and own-prefix program-flyer storage listing checks. The configured Admin originally had Member access; the user explicitly approved assigning its intended Admin role, and that audited RPC succeeded.
+- The configured Member has an email/ID conflict with an older public.users row. The approved sync RPC safely returned `profile_conflict`; the older profile was left intact.
+- The user approved creating one fresh disposable Member through the production API. The request returned HTTP 400 `permission denied for table users` after privileged authentication/account handling. The server role is missing SQL table grants; a valid server key alone does not provide those grants. The failed creation was not adopted into the test credential file. Any leftover test fixture from the failed operation should be reviewed after owner access is available; rollback must not be assumed successful while its table permissions are missing.
+- Prepared `024_server_account_creation_permissions.sql`, limited to the server role's account tables and audit insertion. It passed an isolated reproduction that first revoked those grants, reapplied the migration twice, exercised server create/update/audit/rollback operations, and confirmed anonymous user-table reads remain denied. It has not been applied to production.
+- **Next required action:** the database owner must run migration 024 in Supabase SQL Editor, then the live fresh-member creation/integration test can be retried.
+
 1. `SUPABASE_SERVICE_ROLE_KEY` is now confirmed as a hidden Vercel Production Secret, and a fresh deployment is READY. Its actual account-creation operation has not yet been verified with an authenticated test super admin. Never prefix this key NEXT_PUBLIC or paste it into chat.
 2. The user reports applying `database/migrations/023_authenticated_activity_log_permissions.sql`. Verify authenticated logging once test access is available. No Supabase management token, database password/connection, or service-role key is available in this workspace. Production activity-log table permission errors were confirmed in the earlier logs.
 3. The supplied website URL is the live production site, not a separate test backend. No connected live browser session or disposable accounts/credentials are available. Real Google OAuth, actual email delivery, real storage/database integration and authenticated production capacity are not certified by the isolated browser tests. No real member records, payments or notifications were changed by testing.

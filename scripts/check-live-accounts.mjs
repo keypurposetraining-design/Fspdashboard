@@ -33,8 +33,12 @@ for (const [name, expectedRole] of roles) {
     const { error: storageError } = await client.storage.from('program-flyers').list(data.user.id, { limit: 1 });
     assert(!storageError, `${expectedRole}: authenticated flyer storage listing failed`);
     results.push({ role: expectedRole, signIn: 'PASS', ownProfile: 'PASS', active: true, storageList: 'PASS' });
+  } catch (error) {
+    results.push({ role: expectedRole, status: 'FAIL', message: error instanceof Error ? error.message : 'Account check failed' });
   } finally {
     if (signedIn) await client.auth.signOut({ scope: 'local' });
   }
 }
-console.log(JSON.stringify({ status: 'PASS', results, scope: 'Configured disposable accounts; authentication and read-only integration. No account creation, uploads, payments, notifications or emails were performed.' }, null, 2));
+const passed = results.every(result => result.signIn === 'PASS');
+console.log(JSON.stringify({ status: passed ? 'PASS' : 'FAIL', results, scope: 'Configured disposable accounts; authentication and read-only integration. No account creation, uploads, payments, notifications or emails were performed.' }, null, 2));
+if (!passed) process.exitCode = 1;

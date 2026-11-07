@@ -45,6 +45,23 @@ try {
       await db.exec(await readFile('database/tests/021_retire_organizations.sql', 'utf8'));
     }
   }
+  phase = 'server account creation grants';
+  await db.exec('REVOKE ALL ON public.users, public.members, public.memberships, public.audit_logs FROM service_role');
+  const serverGrants = await readFile('database/migrations/024_server_account_creation_permissions.sql', 'utf8');
+  await db.exec(serverGrants); await db.exec(serverGrants);
+  await db.exec(`BEGIN;
+    SET LOCAL ROLE service_role;
+    INSERT INTO public.users(id,email,role) VALUES ('25000000-0000-0000-0000-000000000001','server-grant-test@example.invalid','member');
+    UPDATE public.users SET name='Server test' WHERE id='25000000-0000-0000-0000-000000000001';
+    INSERT INTO public.members(id,user_id) VALUES ('25000000-0000-0000-0000-000000000002','25000000-0000-0000-0000-000000000001');
+    INSERT INTO public.memberships(id,member_id,start_date,status) VALUES ('25000000-0000-0000-0000-000000000003','25000000-0000-0000-0000-000000000002',CURRENT_DATE,'pending');
+    INSERT INTO public.audit_logs(action,table_name,record_id) VALUES ('MEMBER_CREATED','members','25000000-0000-0000-0000-000000000002');
+    DELETE FROM public.memberships WHERE id='25000000-0000-0000-0000-000000000003';
+    DELETE FROM public.members WHERE id='25000000-0000-0000-0000-000000000002';
+    DELETE FROM public.users WHERE id='25000000-0000-0000-0000-000000000001';
+    RESET ROLE;
+    ROLLBACK;`);
+  assert.equal((await db.query("SELECT has_table_privilege('anon', 'public.users', 'SELECT') AS allowed")).rows[0].allowed, false);
   phase = 'trusted role management';
   await db.exec(`BEGIN;
     INSERT INTO auth.users(id,email) VALUES
@@ -74,7 +91,7 @@ try {
     ROLLBACK;`);
   const keys = (await db.query("SELECT conname FROM pg_constraint WHERE contype='f' AND conrelid IN ('public.members'::regclass, 'public.community_posts'::regclass)")).rows.map(row => row.conname);
   assert(keys.includes('members_user_id_fkey') && keys.includes('community_posts_user_id_fkey'), 'Explicit user joins must match actual schema constraints');
-  console.log('PASS: schema and all migrations 001–023, repeat application, organization/membership/retired-feature access, role promotion restrictions, and last-super-admin protection.');
+  console.log('PASS: schema and migrations 001–024, repeat application, server account creation/rollback grants, access isolation, role restrictions, and last-super-admin protection.');
 } catch (error) {
   console.error('Database verification phase:', phase);
   throw error;
