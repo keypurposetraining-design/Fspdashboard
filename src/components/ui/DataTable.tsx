@@ -57,7 +57,7 @@ export function DataTable<T>({
           <thead>
             <tr className="border-b border-[var(--card-border)] bg-[var(--muted-light)]/60">
               {columns.map((c) => {
-                const active = sort?.key === c.sortKey;
+                const active = Boolean(sort && c.sortKey && sort.key === c.sortKey);
                 return (
                   <th
                     key={c.key}
