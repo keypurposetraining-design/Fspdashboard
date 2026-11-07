@@ -45,3 +45,5 @@ dev_server.log
 
 # Share configuration names without local credentials
 !.env.example
+.vercel
+.env*
