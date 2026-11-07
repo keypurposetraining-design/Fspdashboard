@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Upload } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -65,7 +66,7 @@ function OfferingEditor({ offering, onSaved, newProgram = false }: { offering: O
   return <div><form onSubmit={save} className="space-y-3 rounded-xl border border-[var(--card-border)] p-4">
     <h3 className="font-bold">{newProgram ? "Add a program or course" : offering.title}</h3>
     {newProgram && <label className="block text-sm">Catalog section<select className={fieldStyle} value={kind} onChange={event => setKind(event.target.value as Offering["kind"])}><option value="program">Program</option><option value="course">Course</option></select></label>}
-    <div className="space-y-3 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4">
+    <div className="space-y-3 rounded-xl border border-dashed border-[var(--brand-yellow-border)] bg-[var(--brand-yellow-light)] p-4">
       <p className="text-sm font-semibold">Program image</p>
       {flyerPath && <ProgramFlyer path={flyerPath} title={title || "New program"} />}
       <input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="sr-only" aria-label="Choose a program image" onChange={event => {
@@ -74,7 +75,7 @@ function OfferingEditor({ offering, onSaved, newProgram = false }: { offering: O
         if (file) void uploadImage(file);
       }} />
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => imageInput.current?.click()}>{uploading ? "Uploading image..." : flyerPath ? "Replace image" : "Upload image"}</Button>
+        <Button type="button" variant="outline" size="sm" className="border-[var(--brand-yellow)] bg-[var(--brand-yellow)] text-[var(--brand-navy)] hover:border-[var(--brand-yellow-hover)] hover:bg-[var(--brand-yellow-hover)]" icon={<Upload className="h-4 w-4" aria-hidden="true" />} disabled={busy} onClick={() => imageInput.current?.click()}>{uploading ? "Uploading image..." : flyerPath ? "Replace image" : "Upload image"}</Button>
         {flyer && !uploading && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void uploadImage()}>Retry upload</Button>}
         {uploading && <span role="status" className="text-xs text-[var(--muted)]">Uploading {flyer?.name}</span>}
       </div>
