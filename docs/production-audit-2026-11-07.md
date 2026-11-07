@@ -32,9 +32,10 @@ Application checks and isolated workflow tests pass. Live Supabase setup and liv
 
 ## Live-only work still blocked
 
-1. Vercel production has only the public Supabase URL/key. The existing account-creation endpoint requires a server-only `SUPABASE_SERVICE_ROLE_KEY`. Configure it in Vercel Production and redeploy; never prefix it NEXT_PUBLIC or paste it into chat.
+1. `SUPABASE_SERVICE_ROLE_KEY` is now confirmed as a hidden Vercel Production Secret, and a fresh deployment is READY. Its actual account-creation operation has not yet been verified with an authenticated test super admin. Never prefix this key NEXT_PUBLIC or paste it into chat.
 2. The user reports applying `database/migrations/023_authenticated_activity_log_permissions.sql`. Verify authenticated logging once test access is available. No Supabase management token, database password/connection, or service-role key is available in this workspace. Production activity-log table permission errors were confirmed in the earlier logs.
 3. The supplied website URL is the live production site, not a separate test backend. No connected live browser session or disposable accounts/credentials are available. Real Google OAuth, actual email delivery, real storage/database integration and authenticated production capacity are not certified by the isolated browser tests. No real member records, payments or notifications were changed by testing.
+4. An ignored `.env.test.local` template is prepared for disposable member/admin/super-admin credentials. `node scripts/check-live-accounts.mjs` currently reports the six missing variables and sends no sign-in requests. Once configured privately, it verifies actual login, each account's own trusted role/active status and its own-prefix flyer storage listing, then ends its own test session. It does not create accounts, upload files, approve payments or send email.
 
 ## Repeat checks
 
