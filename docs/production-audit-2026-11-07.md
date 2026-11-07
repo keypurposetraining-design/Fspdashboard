@@ -2,7 +2,7 @@
 
 ## Current result
 
-Application checks and isolated workflow tests pass. Live Supabase setup and live provider delivery checks remain blocked by missing access; this is not a claim that every production integration is verified.
+Application checks, isolated workflow suites and the live functional checks listed below passed. Email receipt and final Google sign-in were confirmed by the user. Real-backend load testing remains unrun because there is no separate test backend.
 
 ## Changes
 
@@ -30,21 +30,23 @@ Application checks and isolated workflow tests pass. Live Supabase setup and liv
 - Additional live read-only audit matched local public configuration to deployed JavaScript before probing Supabase. Anonymous SELECT was denied on users, members, memberships, payments, member_activity_logs, audit_logs, member_documents, membership_applications and offering_enrollments. No objects were visible in anonymous listings of program-flyers, task-submissions and member-documents. Empty listings do not establish bucket existence, private flags or authenticated upload/read success.
 - Live authentication settings show email and Google enabled, with email auto-confirm disabled. The Google authorization endpoint returned HTTP 302 to accounts.google.com. The redirect was not followed; no actual Google login or email delivery was performed.
 
-## Live-only work still blocked
+## Live integration results
 
-### Authenticated live test update
+- The server-only Supabase key is confirmed as a hidden Production Secret, and production was redeployed with it.
+- Migration 024 was applied by the user. A live request through the account-creation API then returned HTTP 200 and created one approved disposable Member. Its generated credentials were saved only in the ignored local test file. The pending membership and MEMBER_CREATED audit entry were independently verified.
+- Live disposable Member, Admin and Super Admin accounts all passed password sign-in, own trusted profile/role, active-status and own-prefix storage listing checks. The user-approved Admin test role assignment succeeded. The older conflicting Member profile was left intact.
+- A real temporary one-pixel image in the disposable Member's private task-submissions folder passed upload, authenticated byte-for-byte download, signed URL byte-for-byte download and anonymous denial. Only this generated object was removed; a follow-up read confirmed removal. No task or payment was submitted.
+- One password-reset test email was explicitly authorized by the user. Supabase accepted the request and the user confirmed inbox receipt. No password was changed and no reset token was collected.
+- The Google authorization start was independently verified as HTTP 302 to Google. The user then completed Google sign-in and confirmed that the dashboard opened. This final browser/provider step is user-confirmed, not an agent-observed connected browser session.
+- Existing member business data, payments and announcements were not used for destructive testing. Only explicitly approved disposable test-account setup, its membership/audit records, login sessions and the temporary storage object were used.
 
-- Disposable-account credentials are now saved privately and all three accounts authenticate successfully.
-- Admin and Super Admin passed actual own-profile role, active-status and own-prefix program-flyer storage listing checks. The configured Admin originally had Member access; the user explicitly approved assigning its intended Admin role, and that audited RPC succeeded.
-- The configured Member has an email/ID conflict with an older public.users row. The approved sync RPC safely returned `profile_conflict`; the older profile was left intact.
-- The user approved creating one fresh disposable Member through the production API. The request returned HTTP 400 `permission denied for table users` after privileged authentication/account handling. The server role is missing SQL table grants; a valid server key alone does not provide those grants. The failed creation was not adopted into the test credential file. Any leftover test fixture from the failed operation should be reviewed after owner access is available; rollback must not be assumed successful while its table permissions are missing.
-- Prepared `024_server_account_creation_permissions.sql`, limited to the server role's account tables and audit insertion. It passed an isolated reproduction that first revoked those grants, reapplied the migration twice, exercised server create/update/audit/rollback operations, and confirmed anonymous user-table reads remain denied. It has not been applied to production.
-- **Next required action:** the database owner must run migration 024 in Supabase SQL Editor, then the live fresh-member creation/integration test can be retried.
+- Production error-log check after the latest live tests returned no error entries in the preceding five-minute window. This only covers the available log window.
 
-1. `SUPABASE_SERVICE_ROLE_KEY` is now confirmed as a hidden Vercel Production Secret, and a fresh deployment is READY. Its actual account-creation operation has not yet been verified with an authenticated test super admin. Never prefix this key NEXT_PUBLIC or paste it into chat.
-2. The user reports applying `database/migrations/023_authenticated_activity_log_permissions.sql`. Verify authenticated logging once test access is available. No Supabase management token, database password/connection, or service-role key is available in this workspace. Production activity-log table permission errors were confirmed in the earlier logs.
-3. The supplied website URL is the live production site, not a separate test backend. No connected live browser session or disposable accounts/credentials are available. Real Google OAuth, actual email delivery, real storage/database integration and authenticated production capacity are not certified by the isolated browser tests. No real member records, payments or notifications were changed by testing.
-4. An ignored `.env.test.local` template is prepared for disposable member/admin/super-admin credentials. `node scripts/check-live-accounts.mjs` currently reports the six missing variables and sends no sign-in requests. Once configured privately, it verifies actual login, each account's own trusted role/active status and its own-prefix flyer storage listing, then ends its own test session. It does not create accounts, upload files, approve payments or send email.
+## Remaining limitation
+
+**Real Supabase/backend capacity testing has not been performed.** The user confirmed that no separate test backend exists. Production was not stress-tested. Local/fixture load checks passed, but their timings do not establish production capacity. A separate Supabase test project/backend with representative synthetic data is required for this remaining check.
+
+These are scoped verification results, not a guarantee that every possible workflow or failure mode is covered.
 
 ## Repeat checks
 
