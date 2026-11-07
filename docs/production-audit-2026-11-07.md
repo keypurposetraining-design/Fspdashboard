@@ -12,7 +12,7 @@ Application checks and isolated workflow tests pass. Live Supabase setup and liv
 - Made older admin user embeds explicit using `members_user_id_fkey` / `community_posts_user_id_fkey`, avoiding ambiguous joins where audit columns also reference users.
 - Associated the role-dialog reason label with its input and restored visible branding in the mobile header.
 - Added repeatable unit/render, HTTP, database and browser test commands.
-- Prepared migration 023 for authenticated activity-log privileges. It is tested but has **not been applied to the live database**.
+- Prepared migration 023 for authenticated activity-log privileges. It is tested; the user reports applying it to production, but authenticated live logging has not been independently verified.
 
 ## Verification passed
 
@@ -27,11 +27,13 @@ Application checks and isolated workflow tests pass. Live Supabase setup and liv
 - Authenticated local load: 100 requests, concurrency 10, zero failures; latest p95 192 ms against the fixture backend. Earlier public-page load: 200 requests, concurrency 10, zero failures, p95 98 ms. Neither establishes real Supabase capacity or production traffic limits.
 - Public production smoke: login/signup/about/privacy/terms return 200; admin/super-admin routes redirect anonymous requests to login; protected APIs reject anonymous users; malformed activity input returns 400 without a database write.
 - `npm audit`: zero reported vulnerabilities across production and development dependencies.
+- Additional live read-only audit matched local public configuration to deployed JavaScript before probing Supabase. Anonymous SELECT was denied on users, members, memberships, payments, member_activity_logs, audit_logs, member_documents, membership_applications and offering_enrollments. No objects were visible in anonymous listings of program-flyers, task-submissions and member-documents. Empty listings do not establish bucket existence, private flags or authenticated upload/read success.
+- Live authentication settings show email and Google enabled, with email auto-confirm disabled. The Google authorization endpoint returned HTTP 302 to accounts.google.com. The redirect was not followed; no actual Google login or email delivery was performed.
 
 ## Live-only work still blocked
 
 1. Vercel production has only the public Supabase URL/key. The existing account-creation endpoint requires a server-only `SUPABASE_SERVICE_ROLE_KEY`. Configure it in Vercel Production and redeploy; never prefix it NEXT_PUBLIC or paste it into chat.
-2. Apply `database/migrations/023_authenticated_activity_log_permissions.sql` in the production Supabase SQL editor as database owner. No Supabase management token, database password/connection, or service-role key is available in this workspace. Production activity-log table permission errors were confirmed in the earlier logs.
+2. The user reports applying `database/migrations/023_authenticated_activity_log_permissions.sql`. Verify authenticated logging once test access is available. No Supabase management token, database password/connection, or service-role key is available in this workspace. Production activity-log table permission errors were confirmed in the earlier logs.
 3. The supplied website URL is the live production site, not a separate test backend. No connected live browser session or disposable accounts/credentials are available. Real Google OAuth, actual email delivery, real storage/database integration and authenticated production capacity are not certified by the isolated browser tests. No real member records, payments or notifications were changed by testing.
 
 ## Repeat checks
@@ -41,6 +43,7 @@ npm.cmd run lint -- --max-warnings 0
 npm.cmd test
 npm.cmd run build
 npm.cmd audit
+node scripts/check-live-readonly.mjs
 npm.cmd run start -- --port 3100
 # In a second terminal:
 npm.cmd run test:http
