@@ -1,22 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import {
-  CheckSquare,
-  CheckCircle2,
-  Clock,
-  RefreshCcw,
-  Upload,
-  Download,
-  X
-} from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { logMemberActivity } from "@/lib/activity-log";
+import { useAuth } from "@/lib/auth";
 import { toDataError } from "@/lib/data/errors";
+import { PersonRow, SubmissionRow, TaskRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import {
+CheckCircle2,
+CheckSquare,
+Clock,
+Download,
+RefreshCcw,
+Upload,
+X
+} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 export const TasksView: React.FC = () => {
   const { user } = useAuth();
@@ -24,22 +25,18 @@ export const TasksView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [member, setMember] = useState<any>(null);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [member, setMember] = useState<PersonRow | null>(null);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
 
   // Submissions Modal State
-  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskRow | null>(null);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [user]);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true); setLoadError(null);
@@ -52,14 +49,14 @@ export const TasksView: React.FC = () => {
 
       if (memberErr) throw memberErr;
       if (memberData) {
-        setMember(memberData);
+        setMember((memberData) as unknown as PersonRow | null);
 
         // Fetch all tasks
         const { data: tasksData, error: tasksErr } = await supabase
           .from("tasks")
           .select("*, courses(title)");
         if (tasksErr) throw tasksErr;
-        setTasks(tasksData || []);
+        setTasks((tasksData || []) as unknown as TaskRow[]);
 
         // Fetch user submissions
         const { data: subsData, error: subsErr } = await supabase
@@ -67,17 +64,26 @@ export const TasksView: React.FC = () => {
           .select("*")
           .eq("member_id", memberData.id);
         if (subsErr) throw subsErr;
-        setSubmissions(subsData || []);
+        setSubmissions((subsData || []) as unknown as SubmissionRow[]);
 
         await logMemberActivity("TASK_VIEW");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // toDataError logs the raw error for developers; no second console.error.
       setLoadError(toDataError(err, "tasks").message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData]);
 
   // Sanitize Filename
   const sanitizeFilename = (name: string) => {
@@ -127,7 +133,7 @@ export const TasksView: React.FC = () => {
       const storagePath = `${user.id}/${selectedTask.id}/${Date.now()}_${sanitized}`;
 
       // Upload to Supabase Storage
-      const { data, error: uploadErr } = await supabase.storage
+      const { error: uploadErr } = await supabase.storage
         .from("task-submissions")
         .upload(storagePath, file, { cacheControl: "3600", upsert: true });
 
@@ -169,9 +175,9 @@ export const TasksView: React.FC = () => {
       setUploadStatus("");
       await fetchInitialData();
       alert("Syllabus assignment uploaded and submitted successfully!");
-    } catch (err: any) {
-      alert("Upload failed: " + err.message);
-      setUploadStatus("Error: " + err.message);
+    } catch (err: unknown) {
+      alert("Upload failed: " + errorMessage(err));
+      setUploadStatus("Error: " + errorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -188,8 +194,8 @@ export const TasksView: React.FC = () => {
       if (data?.signedUrl) {
         window.open(data.signedUrl, "_blank");
       }
-    } catch (err: any) {
-      alert("Failed to retrieve file download link: " + err.message);
+    } catch (err: unknown) {
+      alert("Failed to retrieve file download link: " + errorMessage(err));
     }
   };
 
@@ -332,16 +338,16 @@ export const TasksView: React.FC = () => {
 
                   <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
                     {status === "Pending" ? (
-                      <Button variant="primary" size="sm" fullWidth onClick={() => { setSelectedTask(task); setIsSubmitModalOpen(true); }} icon={<Upload className="w-3.5 h-3.5" />}>
+                      <Button variant="primary" size="sm" fullWidth onClick={() => { setSelectedTask((task) as unknown as TaskRow | null); setIsSubmitModalOpen(true); }} icon={<Upload className="w-3.5 h-3.5" />}>
                         Upload Proof Submission
                       </Button>
                     ) : (
                       <div className="flex gap-2 w-full">
-                        <Button variant="outline" size="sm" fullWidth onClick={() => handleDownloadFile(record.file_url)} icon={<Download className="w-3.5 h-3.5" />}>
+                        <Button variant="outline" size="sm" fullWidth onClick={() => handleDownloadFile(record!.file_url!)} icon={<Download className="w-3.5 h-3.5" />}>
                           View Uploaded File
                         </Button>
                         {status === "Submitted" && (
-                          <Button variant="ghost" size="sm" onClick={() => { setSelectedTask(task); setIsSubmitModalOpen(true); }}>
+                          <Button variant="ghost" size="sm" onClick={() => { setSelectedTask((task) as unknown as TaskRow | null); setIsSubmitModalOpen(true); }}>
                             Resubmit
                           </Button>
                         )}

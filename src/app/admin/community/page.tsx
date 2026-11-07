@@ -1,33 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { Search, Trash2, Eye, ShieldAlert, MessageSquare, RefreshCcw } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Table } from "@/components/ui/Table";
+import { PostRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { RefreshCcw, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function AdminCommunity() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<PostRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchPosts();
-  }, []);
-
-  async function fetchPosts() {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -38,7 +29,7 @@ export default function AdminCommunity() {
           created_at,
           parent_post_id,
           user_id,
-          users (
+          users!community_posts_user_id_fkey (
             name,
             email,
             role
@@ -47,24 +38,37 @@ export default function AdminCommunity() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setPosts(data || []);
-      setFilteredPosts(data || []);
-    } catch (err: any) {
-      console.error("Error fetching community posts:", err.message);
+      setPosts((data || []) as unknown as PostRow[]);
+    } catch (err: unknown) {
+      console.error("Error fetching community posts:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchPosts();
+    });
+    return () => { cancelled = true; };
+  }, [fetchPosts, supabase]);
 
   // Handle Search
-  useEffect(() => {
+  const filteredPosts = useMemo(() => {
     const q = searchQuery.toLowerCase();
     const filtered = posts.filter(p => 
       (p.content || "").toLowerCase().includes(q) || 
       (p.users?.name || "").toLowerCase().includes(q) ||
       (p.users?.email || "").toLowerCase().includes(q)
     );
-    setFilteredPosts(filtered);
+    return filtered;
   }, [searchQuery, posts]);
 
   const handleDeletePost = async (postId: string, contentSnippet: string) => {
@@ -88,8 +92,8 @@ export default function AdminCommunity() {
       });
 
       await fetchPosts();
-    } catch (err: any) {
-      alert("Error deleting post: " + err.message);
+    } catch (err: unknown) {
+      alert("Error deleting post: " + errorMessage(err));
     } finally {
       setLoading(false);
     }

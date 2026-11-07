@@ -1,6 +1,6 @@
 import React from 'react';
 
-export interface ScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type ScrollAreaProps = React.HTMLAttributes<HTMLDivElement>;
 
 export const ScrollArea = ({ children, ...props }: ScrollAreaProps) => {
   return (

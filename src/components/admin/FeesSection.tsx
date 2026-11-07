@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { EventRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import React, { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Table } from "@/components/ui/Table";
@@ -18,21 +19,12 @@ export function FeesSection() {
   const [renewalAmount, setRenewalAmount] = useState("3000");
   const [renewalCurrency, setRenewalCurrency] = useState("INR");
 
-  const [events, setEvents] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
   const [saveMsg, setSaveMsg] = useState("");
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
       const [settingsRes, eventsRes] = await Promise.all([
@@ -59,13 +51,27 @@ export function FeesSection() {
         setRenewalCurrency(String(renewal.currency ?? "INR"));
       }
 
-      setEvents(eventsRes.data || []);
-    } catch (err: any) {
-      console.error("Error loading fee settings:", err.message);
+      setEvents((eventsRes.data || []) as unknown as EventRow[]);
+    } catch (err: unknown) {
+      console.error("Error loading fee settings:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData, supabase]);
 
   const handleSaveRenewalFee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,8 +106,8 @@ export function FeesSection() {
 
       setSaveMsg("Membership renewal fee updated successfully!");
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error saving renewal fee: " + err.message);
+    } catch (err: unknown) {
+      alert("Error saving renewal fee: " + errorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -131,8 +137,8 @@ export function FeesSection() {
       });
 
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error saving event fee: " + err.message);
+    } catch (err: unknown) {
+      alert("Error saving event fee: " + errorMessage(err));
     }
   };
 
@@ -222,7 +228,7 @@ export function FeesSection() {
   );
 }
 
-function EventFeeEditor({ event, onSave }: { event: any; onSave: (value: string) => void }) {
+function EventFeeEditor({ event, onSave }: { event: EventRow; onSave: (value: string) => void }) {
   const [value, setValue] = useState(event.fee != null ? String(event.fee) : "");
   const [saving, setSaving] = useState(false);
 

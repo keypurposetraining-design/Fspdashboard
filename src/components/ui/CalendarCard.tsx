@@ -1,8 +1,11 @@
-import React from "react";
+"use client";
+
 import { EventItem } from "@/data/mockData";
+import { Calendar as CalendarIcon, CheckCircle, Clock, Users, Video } from "lucide-react";
+import Image from "next/image";
+import React from "react";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
-import { Clock, Users, Video, Calendar as CalendarIcon, CheckCircle } from "lucide-react";
 
 export interface CalendarCardProps {
   event: EventItem;
@@ -62,7 +65,10 @@ export const CalendarCard: React.FC<CalendarCardProps> = ({ event, onRSVP }) => 
           </div>
           {event.speaker && (
             <div className="flex items-center gap-2">
-              <img
+              <Image
+                width={16}
+                height={16}
+                unoptimized
                 src={event.speaker.avatar}
                 alt={event.speaker.name}
                 className="w-4 h-4 rounded-full object-cover border border-[var(--card-border)]"
@@ -81,7 +87,7 @@ export const CalendarCard: React.FC<CalendarCardProps> = ({ event, onRSVP }) => 
             Attending (Saved)
           </Button>
         ) : (
-          <Button variant="primary" size="sm" fullWidth icon={<CalendarIcon className="w-4 h-4" />}>
+          <Button variant="primary" size="sm" fullWidth onClick={() => onRSVP?.(event.id)} icon={<CalendarIcon className="w-4 h-4" />}>
             Reserve My Seat
           </Button>
         )}

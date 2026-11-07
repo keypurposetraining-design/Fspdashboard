@@ -1,27 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { toDataError } from "@/lib/data/errors";
-import { useAuth } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Download, ExternalLink, FileText, RefreshCcw } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { logMemberActivity } from "@/lib/activity-log";
+import { toDataError } from "@/lib/data/errors";
+import { ResourceRow } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { Download, FileText, RefreshCcw } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 export const ResourcesView: React.FC = () => {
-  const { user } = useAuth();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [resources, setResources] = useState<any[]>([]);
+  const [resources, setResources] = useState<ResourceRow[]>([]);
 
-  useEffect(() => {
-    fetchResources();
-  }, [user]);
-
-  async function fetchResources() {
+  const fetchResources = useCallback(async () => {
     try {
       setLoading(true); setLoadError(null);
       const { data, error } = await supabase
@@ -29,15 +24,24 @@ export const ResourcesView: React.FC = () => {
         .select("*, courses(title)");
 
       if (error) throw error;
-      setResources(data || []);
+      setResources((data || []) as unknown as ResourceRow[]);
 
       await logMemberActivity("RESOURCE_VIEW");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoadError(toDataError(err, "resources").message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      fetchResources();
+    });
+    return () => { cancelled = true; };
+  }, [fetchResources]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
@@ -95,7 +99,7 @@ export const ResourcesView: React.FC = () => {
               <div className="flex items-center gap-2 pt-4 border-t border-[var(--card-border)] mt-4">
                 <Button variant="primary" size="sm" fullWidth onClick={() => {
                   logMemberActivity("RESOURCE_DOWNLOAD", { resource_id: res.id });
-                  window.open(res.file_url, "_blank");
+                  window.open(res.url, "_blank", "noopener,noreferrer");
                 }} icon={<Download className="w-4 h-4" />}>
                   Download File
                 </Button>

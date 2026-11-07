@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { toDataError } from "@/lib/data/errors";
-import { useAuth } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { Award, Trophy, Download, Share2, ShieldCheck, RefreshCcw } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { logMemberActivity } from "@/lib/activity-log";
+import { useAuth } from "@/lib/auth";
+import { toDataError } from "@/lib/data/errors";
+import { CertificateRow } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { Award, Download, RefreshCcw, ShieldCheck } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 export const CertificatesView: React.FC = () => {
   const { user } = useAuth();
@@ -16,14 +17,9 @@ export const CertificatesView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [member, setMember] = useState<any>(null);
-  const [certificates, setCertificates] = useState<any[]>([]);
+  const [certificates, setCertificates] = useState<CertificateRow[]>([]);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [user]);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true); setLoadError(null);
@@ -36,7 +32,6 @@ export const CertificatesView: React.FC = () => {
 
       if (memberErr) throw memberErr;
       if (memberData) {
-        setMember(memberData);
 
         // Fetch certificates
         const { data: certsData, error: certsErr } = await supabase
@@ -44,16 +39,25 @@ export const CertificatesView: React.FC = () => {
           .select("*, courses(title)")
           .eq("member_id", memberData.id);
         if (certsErr) throw certsErr;
-        setCertificates(certsData || []);
+        setCertificates((certsData || []) as unknown as CertificateRow[]);
 
         await logMemberActivity("CERTIFICATE_VIEW");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoadError(toDataError(err, "certificates").message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-200">

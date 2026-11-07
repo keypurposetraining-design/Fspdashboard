@@ -1,21 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { Search, Plus, Edit, Trash2, Eye, X, RefreshCcw } from "lucide-react";
+import { Table } from "@/components/ui/Table";
+import { CourseRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { Edit, Plus, RefreshCcw, Search, Trash2, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 export function CoursesSection() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [courses, setCourses] = useState<any[]>([]);
-  const [filteredCourses, setFilteredCourses] = useState<any[]>([]);
+  const [courses, setCourses] = useState<CourseRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CourseRow | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -23,18 +23,9 @@ export function CoursesSection() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchCourses();
-  }, []);
-
-  async function fetchCourses() {
+  const fetchCourses = useCallback(async () => {
     try {
       setLoading(true);
       // Fetch courses with enrollment counts
@@ -51,23 +42,36 @@ export function CoursesSection() {
         `);
 
       if (error) throw error;
-      setCourses(data || []);
-      setFilteredCourses(data || []);
-    } catch (err: any) {
-      console.error("Error fetching courses:", err.message);
+      setCourses((data || []) as unknown as CourseRow[]);
+    } catch (err: unknown) {
+      console.error("Error fetching courses:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchCourses();
+    });
+    return () => { cancelled = true; };
+  }, [fetchCourses, supabase]);
 
   // Handle Search
-  useEffect(() => {
+  const filteredCourses = useMemo(() => {
     const q = searchQuery.toLowerCase();
     const filtered = courses.filter(c =>
       (c.title || "").toLowerCase().includes(q) ||
       (c.description || "").toLowerCase().includes(q)
     );
-    setFilteredCourses(filtered);
+    return filtered;
   }, [searchQuery, courses]);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -99,15 +103,15 @@ export function CoursesSection() {
       setTitle("");
       setDescription("");
       await fetchCourses();
-    } catch (err: any) {
-      alert("Error creating course: " + err.message);
+    } catch (err: unknown) {
+      alert("Error creating course: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenEdit = (course: any) => {
-    setSelectedCourse(course);
+  const handleOpenEdit = (course: CourseRow) => {
+    setSelectedCourse((course) as unknown as CourseRow | null);
     setTitle(course.title || "");
     setDescription(course.description || "");
     setIsEditModalOpen(true);
@@ -142,8 +146,8 @@ export function CoursesSection() {
       setTitle("");
       setDescription("");
       await fetchCourses();
-    } catch (err: any) {
-      alert("Error updating course: " + err.message);
+    } catch (err: unknown) {
+      alert("Error updating course: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -170,8 +174,8 @@ export function CoursesSection() {
       });
 
       await fetchCourses();
-    } catch (err: any) {
-      alert("Error deleting course: " + err.message);
+    } catch (err: unknown) {
+      alert("Error deleting course: " + errorMessage(err));
     } finally {
       setLoading(false);
     }

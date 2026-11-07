@@ -84,8 +84,11 @@ export const Logo: React.FC<LogoProps> = ({
       );
     case "icon":
       return (
-        <div className={`flex items-center justify-center ${className}`}>
-          {logoImage}
+        <div className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-[var(--brand-navy)] shadow-sm ${className}`}
+          style={{ width: Math.round(config.icon * 1.3), height: config.icon }}>
+          <Image src="/fsp-logo.png" alt={alt} width={config.icon * 2} height={Math.round(config.icon * 1.34)}
+            className="max-w-none shrink-0 object-contain" preload unoptimized
+            style={{ clipPath: "inset(0 0 38% 0)", transform: "translateY(8%)" }} />
         </div>
       );
 

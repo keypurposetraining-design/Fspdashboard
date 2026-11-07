@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { Settings, Shield, Cpu, Bell, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { CheckCircle2, Cpu, Settings, Shield } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 export default function AdminSettings() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [adminUser, setAdminUser] = useState<any>(null);
-  const [adminProfile, setAdminProfile] = useState<any>(null);
+  const [adminUser, setAdminUser] = useState<UserRow | null>(null);
+  const [adminProfile, setAdminProfile] = useState<UserRow | null>(null);
 
   // Form profile edits
   const [name, setName] = useState("");
@@ -25,7 +26,7 @@ export default function AdminSettings() {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          setAdminUser(user);
+          setAdminUser((user) as unknown as UserRow | null);
           setEmail(user.email || "");
           
           const { data: profile } = await supabase
@@ -35,18 +36,18 @@ export default function AdminSettings() {
             .single();
 
           if (profile) {
-            setAdminProfile(profile);
+            setAdminProfile((profile) as unknown as UserRow | null);
             setName(profile.name || "");
           }
         }
-      } catch (err: any) {
-        console.error("Error loading admin settings profile:", err.message);
+      } catch (err: unknown) {
+        console.error("Error loading admin settings profile:", errorMessage(err));
       } finally {
         setLoading(false);
       }
     }
     loadAdminProfile();
-  }, []);
+  }, [supabase]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,8 +82,8 @@ export default function AdminSettings() {
       });
 
       setMessage("Admin profile updated successfully!");
-    } catch (err: any) {
-      alert("Error updating profile: " + err.message);
+    } catch (err: unknown) {
+      alert("Error updating profile: " + errorMessage(err));
     } finally {
       setLoading(false);
     }

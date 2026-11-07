@@ -1,22 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { toDataError } from "@/lib/data/errors";
-import { useAuth } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import {
-  Users,
-  MessageSquare,
-  ThumbsUp,
-  Sparkles,
-  PlusCircle,
-  RefreshCcw,
-  User,
-} from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { logMemberActivity } from "@/lib/activity-log";
+import { useAuth } from "@/lib/auth";
+import { toDataError } from "@/lib/data/errors";
+import { PostRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import {
+RefreshCcw,
+Sparkles
+} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 export const CommunityView: React.FC = () => {
   const { user } = useAuth();
@@ -24,15 +20,11 @@ export const CommunityView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<PostRow[]>([]);
   const [newContent, setNewContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchPosts();
-  }, [user]);
-
-  async function fetchPosts() {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true); setLoadError(null);
       const { data, error } = await supabase
@@ -53,14 +45,23 @@ export const CommunityView: React.FC = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setPosts(data || []);
-    } catch (err: any) {
+      setPosts((data || []) as unknown as PostRow[]);
+    } catch (err: unknown) {
       // toDataError logs the raw error for developers; no second console.error.
       setLoadError(toDataError(err, "community posts").message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      fetchPosts();
+    });
+    return () => { cancelled = true; };
+  }, [fetchPosts]);
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,8 +83,8 @@ export const CommunityView: React.FC = () => {
 
       setNewContent("");
       await fetchPosts();
-    } catch (err: any) {
-      alert("Error publishing post: " + err.message);
+    } catch (err: unknown) {
+      alert("Error publishing post: " + errorMessage(err));
     } finally {
       setSubmitting(false);
     }

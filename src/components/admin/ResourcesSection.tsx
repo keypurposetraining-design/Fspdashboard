@@ -1,44 +1,34 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Badge } from "@/components/ui/Badge";
-import { Plus, Edit, Trash2, Video, FileText, Link2, X, RefreshCcw, Search } from "lucide-react";
+import { Table } from "@/components/ui/Table";
+import { CourseRow, ResourceRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { Edit, FileText, Link2, Plus, RefreshCcw, Search, Trash2, Video, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 export function ResourcesSection() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [resources, setResources] = useState<any[]>([]);
-  const [filteredResources, setFilteredResources] = useState<any[]>([]);
+  const [resources, setResources] = useState<ResourceRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [courses, setCourses] = useState<any[]>([]);
+  const [courses, setCourses] = useState<CourseRow[]>([]);
 
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
-  const [selectedResource, setSelectedResource] = useState<any>(null);
+  const [selectedResource, setSelectedResource] = useState<ResourceRow | null>(null);
 
   // Form states
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
-  const [type, setType] = useState<any>("document");
+  const [type, setType] = useState<string>("document");
   const [courseId, setCourseId] = useState("");
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
       const [resourcesRes, coursesRes] = await Promise.all([
@@ -49,24 +39,37 @@ export function ResourcesSection() {
       if (resourcesRes.error) throw resourcesRes.error;
       if (coursesRes.error) throw coursesRes.error;
 
-      setResources(resourcesRes.data || []);
-      setFilteredResources(resourcesRes.data || []);
-      setCourses(coursesRes.data || []);
-    } catch (err: any) {
-      console.error("Error loading resources data:", err.message);
+      setResources((resourcesRes.data || []) as unknown as ResourceRow[]);
+      setCourses((coursesRes.data || []) as unknown as CourseRow[]);
+    } catch (err: unknown) {
+      console.error("Error loading resources data:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData, supabase]);
 
   // Handle Search
-  useEffect(() => {
+  const filteredResources = useMemo(() => {
     const q = searchQuery.toLowerCase();
     const filtered = resources.filter(r =>
       (r.title || "").toLowerCase().includes(q) ||
       (r.courses?.title || "").toLowerCase().includes(q)
     );
-    setFilteredResources(filtered);
+    return filtered;
   }, [searchQuery, resources]);
 
   // Simple URL Validation
@@ -74,7 +77,7 @@ export function ResourcesSection() {
     try {
       new URL(string);
       return true;
-    } catch (_) {
+    } catch {
       return false;
     }
   };
@@ -138,18 +141,18 @@ export function ResourcesSection() {
 
       setIsResourceModalOpen(false);
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error saving resource: " + err.message);
+    } catch (err: unknown) {
+      alert("Error saving resource: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenEdit = (res: any) => {
-    setSelectedResource(res);
+  const handleOpenEdit = (res: ResourceRow) => {
+    setSelectedResource((res) as unknown as ResourceRow | null);
     setTitle(res.title || "");
     setUrl(res.url || "");
-    setType(res.type);
+    setType((res.type) as unknown as string);
     setCourseId(res.course_id || "");
     setIsResourceModalOpen(true);
   };
@@ -175,8 +178,8 @@ export function ResourcesSection() {
       });
 
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error deleting resource: " + err.message);
+    } catch (err: unknown) {
+      alert("Error deleting resource: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -190,7 +193,7 @@ export function ResourcesSection() {
           <h1 className="fsp-dot text-2xl font-black text-slate-900 tracking-tight">Resource Library</h1>
           <p className="text-sm text-slate-500 font-medium">Link training video recordings, PDFs, guides, and sheets to courses.</p>
         </div>
-        <Button size="sm" onClick={() => { setSelectedResource(null); setTitle(""); setUrl(""); setType("document"); setCourseId(""); setIsResourceModalOpen(true); }} icon={<Plus className="w-4 h-4" />}>
+        <Button size="sm" onClick={() => { setSelectedResource((null) as unknown as ResourceRow | null); setTitle(""); setUrl(""); setType(("document") as unknown as string); setCourseId(""); setIsResourceModalOpen(true); }} icon={<Plus className="w-4 h-4" />}>
           Add Resource
         </Button>
       </div>

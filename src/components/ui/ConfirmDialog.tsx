@@ -99,11 +99,12 @@ export function ConfirmDialog({
 
         {reason && (
           <div className="mt-4">
-            <label className="block text-sm font-medium text-[var(--foreground)]">
+            <label htmlFor={`${titleId}-reason`} className="block text-sm font-medium text-[var(--foreground)]">
               {reason.label}
               {!reason.optional && <span className="text-red-600"> *</span>}
             </label>
             <textarea
+              id={`${titleId}-reason`}
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={4}

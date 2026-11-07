@@ -30,7 +30,7 @@ export class DataError extends Error {
 export function toDataError(err: unknown, context: string): DataError {
   if (err instanceof DataError) return err;
   const e = (err ?? {}) as PgLikeError;
-  const mapped = classify(e, err);
+  const mapped = classify(e);
 
   // Every error reaching here is returned to a caller that shows the member a
   // message, so a recognised one is already handled: log it at warn level so it
@@ -41,7 +41,7 @@ export function toDataError(err: unknown, context: string): DataError {
   return mapped;
 }
 
-function classify(e: PgLikeError, err: unknown): DataError {
+function classify(e: PgLikeError): DataError {
   const code = e.code ?? "";
   // A few permission errors raised by our own SQL carry wording that is safe and
   // more useful than the generic message (e.g. set_user_role's last-super-admin guard).

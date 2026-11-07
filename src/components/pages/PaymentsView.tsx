@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { toDataError } from "@/lib/data/errors";
-import { useAuth } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { CreditCard, Download, FileText, RefreshCcw, Send, Check } from "lucide-react";
 import { logMemberActivity } from "@/lib/activity-log";
+import { useAuth } from "@/lib/auth";
+import { toDataError } from "@/lib/data/errors";
+import type { Membership } from "@/lib/data/types";
+import { PaymentRow, PersonRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { Check, CreditCard, FileText, RefreshCcw } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 export const PaymentsView: React.FC = () => {
   const { user } = useAuth();
@@ -17,19 +19,15 @@ export const PaymentsView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [member, setMember] = useState<any>(null);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [membership, setMembership] = useState<any>(null);
+  const [member, setMember] = useState<PersonRow | null>(null);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [membership, setMembership] = useState<Membership | null>(null);
 
   // Renewal Form
   const [amount, setAmount] = useState("3000");
   const [renewalFee, setRenewalFee] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
-
-  useEffect(() => {
-    fetchInitialData();
-  }, [user]);
 
   // Load the configured renewal fee (admin-editable via app_settings)
   useEffect(() => {
@@ -49,9 +47,9 @@ export const PaymentsView: React.FC = () => {
     }
     loadRenewalFee();
     return () => { cancelled = true; };
-  }, []);
+  }, [supabase]);
 
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true); setLoadError(null);
@@ -64,7 +62,7 @@ export const PaymentsView: React.FC = () => {
 
       if (memberErr) throw memberErr;
       if (memberData) {
-        setMember(memberData);
+        setMember((memberData) as unknown as PersonRow | null);
 
         // Fetch payments
         const { data: payData, error: payErr } = await supabase
@@ -73,7 +71,7 @@ export const PaymentsView: React.FC = () => {
           .eq("member_id", memberData.id)
           .order("payment_date", { ascending: false });
         if (payErr) throw payErr;
-        setPayments(payData || []);
+        setPayments((payData || []) as unknown as PaymentRow[]);
 
         // Fetch membership
         const { data: memData } = await supabase
@@ -83,16 +81,25 @@ export const PaymentsView: React.FC = () => {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        setMembership(memData);
+        setMembership((memData) as unknown as Membership | null);
 
         await logMemberActivity("PAYMENT_VIEW");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoadError(toDataError(err, "payments").message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData]);
 
   const handleRequestRenewal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,8 +125,8 @@ export const PaymentsView: React.FC = () => {
       await logMemberActivity("PAYMENT_RENEWAL_REQUEST", { amount: parseFloat(amount) });
       setSuccessMsg("Renewal receipt submitted! Administrative team will reconcile shortly.");
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error submitting renewal: " + err.message);
+    } catch (err: unknown) {
+      alert("Error submitting renewal: " + errorMessage(err));
     } finally {
       setSubmitting(false);
     }

@@ -44,8 +44,8 @@ export async function POST() {
       user: userData,
       syncResult: syncData
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Auth sync error:", err);
-    return NextResponse.json({ error: err.message || "Sync failed" }, { status: 500 });
+    return NextResponse.json({ error: "Sync failed" }, { status: 500 });
   }
 }

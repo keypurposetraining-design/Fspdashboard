@@ -1,26 +1,27 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
-import { Badge } from "@/components/ui/Badge";
-import { Plus, Edit, Trash2, CheckCircle2, Download, X, RefreshCcw } from "lucide-react";
+import { Table } from "@/components/ui/Table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { CourseRow, SubmissionRow, TaskRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { CheckCircle2, Download, Edit, Plus, Trash2, X } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 export function TasksSection() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
+  const [courses, setCourses] = useState<CourseRow[]>([]);
 
   // Task creation/edit states
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskRow | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskDesc, setTaskDesc] = useState("");
   const [taskCourseId, setTaskCourseId] = useState("");
@@ -28,21 +29,12 @@ export function TasksSection() {
 
   // Grading states
   const [isGradingModalOpen, setIsGradingModalOpen] = useState(false);
-  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionRow | null>(null);
   const [grade, setGrade] = useState("");
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
       const [tasksRes, submissionsRes, coursesRes] = await Promise.all([
@@ -55,15 +47,29 @@ export function TasksSection() {
       if (submissionsRes.error) throw submissionsRes.error;
       if (coursesRes.error) throw coursesRes.error;
 
-      setTasks(tasksRes.data || []);
-      setSubmissions(submissionsRes.data || []);
-      setCourses(coursesRes.data || []);
-    } catch (err: any) {
-      console.error("Error loading task/grading data:", err.message);
+      setTasks((tasksRes.data || []) as unknown as TaskRow[]);
+      setSubmissions((submissionsRes.data || []) as unknown as SubmissionRow[]);
+      setCourses((coursesRes.data || []) as unknown as CourseRow[]);
+    } catch (err: unknown) {
+      console.error("Error loading task/grading data:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData, supabase]);
 
   const handleAdminDownload = async (filePath: string) => {
     try {
@@ -75,8 +81,8 @@ export function TasksSection() {
       if (data?.signedUrl) {
         window.open(data.signedUrl, "_blank");
       }
-    } catch (err: any) {
-      alert("Failed to retrieve file download link: " + err.message);
+    } catch (err: unknown) {
+      alert("Failed to retrieve file download link: " + errorMessage(err));
     }
   };
 
@@ -134,15 +140,15 @@ export function TasksSection() {
 
       setIsTaskModalOpen(false);
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error saving task: " + err.message);
+    } catch (err: unknown) {
+      alert("Error saving task: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenEditTask = (task: any) => {
-    setSelectedTask(task);
+  const handleOpenEditTask = (task: TaskRow) => {
+    setSelectedTask((task) as unknown as TaskRow | null);
     setTaskTitle(task.title || "");
     setTaskDesc(task.description || "");
     setTaskCourseId(task.course_id || "");
@@ -171,15 +177,15 @@ export function TasksSection() {
       });
 
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error deleting task: " + err.message);
+    } catch (err: unknown) {
+      alert("Error deleting task: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenGrading = (sub: any) => {
-    setSelectedSubmission(sub);
+  const handleOpenGrading = (sub: SubmissionRow) => {
+    setSelectedSubmission((sub) as unknown as SubmissionRow | null);
     setGrade(sub.grade !== null ? String(sub.grade) : "");
     setIsGradingModalOpen(true);
   };
@@ -210,8 +216,8 @@ export function TasksSection() {
 
       setIsGradingModalOpen(false);
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error grading submission: " + err.message);
+    } catch (err: unknown) {
+      alert("Error grading submission: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -225,7 +231,7 @@ export function TasksSection() {
           <h1 className="fsp-dot text-2xl font-black text-slate-900 tracking-tight">Tasks & Submissions</h1>
           <p className="text-sm text-slate-500 font-medium">Create learning tasks and evaluate student work submissions.</p>
         </div>
-        <Button size="sm" onClick={() => { setSelectedTask(null); setTaskTitle(""); setTaskDesc(""); setTaskCourseId(""); setTaskDueDate(""); setIsTaskModalOpen(true); }} icon={<Plus className="w-4 h-4" />}>
+        <Button size="sm" onClick={() => { setSelectedTask((null) as unknown as TaskRow | null); setTaskTitle(""); setTaskDesc(""); setTaskCourseId(""); setTaskDueDate(""); setIsTaskModalOpen(true); }} icon={<Plus className="w-4 h-4" />}>
           Add New Task
         </Button>
       </div>
@@ -300,7 +306,7 @@ export function TasksSection() {
                         </div>
                          <div className="flex gap-2 pt-1">
                           {sub.file_url && (
-                            <Button variant="outline" size="xs" onClick={() => handleAdminDownload(sub.file_url)} icon={<Download className="w-3 h-3" />}>
+                            <Button variant="outline" size="xs" onClick={() => handleAdminDownload(sub.file_url!)} icon={<Download className="w-3 h-3" />}>
                               View Attachment
                             </Button>
                           )}
@@ -401,7 +407,7 @@ export function TasksSection() {
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Submission Attachment</span>
                     <button
                       type="button"
-                      onClick={() => handleAdminDownload(selectedSubmission.file_url)}
+                      onClick={() => handleAdminDownload(selectedSubmission.file_url!)}
                       className="text-sm text-[var(--brand-navy)] hover:underline inline-flex items-center gap-1 mt-1 font-semibold"
                     >
                       <Download size={14} /> Open uploaded work

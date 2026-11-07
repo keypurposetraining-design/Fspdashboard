@@ -51,7 +51,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   if (asChild && React.isValidElement(children)) {
     // Clone child element to inherit button styles and props
-    const child = children as React.ReactElement<any>;
+    const child = children as React.ReactElement<{ className?: string; disabled?: boolean }>;
     const childClass = child.props.className || "";
     return React.cloneElement(child, {
       ...props,
@@ -66,7 +66,7 @@ export const Button: React.FC<ButtonProps> = ({
         )
       ),
       disabled,
-    } as any);
+    });
   }
 
   return (

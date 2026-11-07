@@ -1,39 +1,31 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Badge } from "@/components/ui/Badge";
-import { Plus, Bell, Send, X, RefreshCcw } from "lucide-react";
+import { Table } from "@/components/ui/Table";
+import { NotificationRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { RefreshCcw, Send, X } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
 export default function AdminNotifications() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
 
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [targetUserId, setTargetUserId] = useState("all");
-  const [notifType, setNotifType] = useState<any>("info");
+  const [notifType, setNotifType] = useState<string>("info");
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
       const [notifsRes, usersRes] = await Promise.all([
@@ -44,14 +36,28 @@ export default function AdminNotifications() {
       if (notifsRes.error) throw notifsRes.error;
       if (usersRes.error) throw usersRes.error;
 
-      setNotifications(notifsRes.data || []);
-      setUsers(usersRes.data || []);
-    } catch (err: any) {
-      console.error("Error loading notifications:", err.message);
+      setNotifications((notifsRes.data || []) as unknown as NotificationRow[]);
+      setUsers((usersRes.data || []) as unknown as UserRow[]);
+    } catch (err: unknown) {
+      console.error("Error loading notifications:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData, supabase]);
 
   const handleSendNotification = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,8 +116,8 @@ export default function AdminNotifications() {
       setMessage("");
       setTargetUserId("all");
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error broadcasting notification: " + err.message);
+    } catch (err: unknown) {
+      alert("Error broadcasting notification: " + errorMessage(err));
     } finally {
       setLoading(false);
     }

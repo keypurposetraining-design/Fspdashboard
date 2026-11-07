@@ -1,51 +1,44 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { toDataError } from "@/lib/data/errors";
-import { useAuth } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import {
-  Calendar as CalendarIcon,
-  Video,
-  PlayCircle,
-  Users,
-  Search,
-  CheckCircle2,
-  RefreshCcw,
-  Clock,
-  MapPin,
-  IndianRupee,
-  CreditCard,
-  X
-} from "lucide-react";
 import { logMemberActivity } from "@/lib/activity-log";
+import { useAuth } from "@/lib/auth";
+import { toDataError } from "@/lib/data/errors";
+import { EventRow, PaymentRow, PersonRow, RegistrationRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import {
+Calendar as CalendarIcon,
+CheckCircle2,
+Clock,
+CreditCard,
+IndianRupee,
+MapPin,
+RefreshCcw,
+X
+} from "lucide-react";
+import Image from "next/image";
+import React, { useCallback, useEffect, useState } from "react";
 
 export const EventsView: React.FC = () => {
   const { user } = useAuth();
   const supabase = createClient();
-  const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [member, setMember] = useState<any>(null);
-  const [events, setEvents] = useState<any[]>([]);
-  const [registrations, setRegistrations] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [member, setMember] = useState<PersonRow | null>(null);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
 
   // Paid RSVP modal state
-  const [payEvent, setPayEvent] = useState<any>(null);
+  const [payEvent, setPayEvent] = useState<EventRow | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [submittingPay, setSubmittingPay] = useState(false);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [user]);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true); setLoadError(null);
@@ -58,7 +51,7 @@ export const EventsView: React.FC = () => {
 
       if (memberErr) throw memberErr;
       if (memberData) {
-        setMember(memberData);
+        setMember((memberData) as unknown as PersonRow | null);
 
         // Fetch events
         const { data: eventsData, error: eventsErr } = await supabase
@@ -66,7 +59,7 @@ export const EventsView: React.FC = () => {
           .select("*")
           .order("start_time", { ascending: true });
         if (eventsErr) throw eventsErr;
-        setEvents(eventsData || []);
+        setEvents((eventsData || []) as unknown as EventRow[]);
 
         // Fetch registrations
         const { data: regsData, error: regsErr } = await supabase
@@ -75,7 +68,7 @@ export const EventsView: React.FC = () => {
           .eq("member_id", memberData.id)
           .eq("status", "registered");
         if (regsErr) throw regsErr;
-        setRegistrations(regsData || []);
+        setRegistrations((regsData || []) as unknown as RegistrationRow[]);
 
         // Fetch payments linked to events (for paid RSVP status)
         const { data: payData, error: payErr } = await supabase
@@ -84,24 +77,33 @@ export const EventsView: React.FC = () => {
           .eq("member_id", memberData.id)
           .not("event_id", "is", null);
         if (payErr) throw payErr;
-        setPayments(payData || []);
+        setPayments((payData || []) as unknown as PaymentRow[]);
 
         await logMemberActivity("EVENT_VIEW");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoadError(toDataError(err, "events").message);
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData]);
 
   // Handle RSVP Toggle
-  const handleRSVP = async (event: any, isRegistered: boolean) => {
+  const handleRSVP = async (event: EventRow, isRegistered: boolean) => {
     if (!member) return;
 
     // Paid events open the payment flow instead of a direct RSVP
     if (!isRegistered && Number(event.fee || 0) > 0) {
-      setPayEvent(event);
+      setPayEvent((event) as unknown as EventRow | null);
       setPayAmount(String(event.fee));
       return;
     }
@@ -136,8 +138,8 @@ export const EventsView: React.FC = () => {
       }
 
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error processing RSVP: " + err.message);
+    } catch (err: unknown) {
+      alert("Error processing RSVP: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -184,12 +186,12 @@ export const EventsView: React.FC = () => {
       if (regError) throw regError;
 
       await logMemberActivity("EVENT_REGISTER", { event_id: payEvent.id, amount });
-      setPayEvent(null);
+      setPayEvent((null) as unknown as EventRow | null);
       setPayAmount("");
       await fetchInitialData();
       alert("Payment receipt submitted and your seat is reserved! Administrative team will verify your payment shortly.");
-    } catch (err: any) {
-      alert("Error reserving seat: " + err.message);
+    } catch (err: unknown) {
+      alert("Error reserving seat: " + errorMessage(err));
     } finally {
       setSubmittingPay(false);
     }
@@ -205,7 +207,7 @@ export const EventsView: React.FC = () => {
     return pay?.status || null;
   };
 
-  const formatFee = (fee: any) => {
+  const formatFee = (fee: unknown) => {
     const num = Number(fee || 0);
     return num > 0 ? `₹${num.toFixed(2)}` : "Free";
   };
@@ -257,7 +259,10 @@ export const EventsView: React.FC = () => {
               <Card key={evt.id} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-5 hover:border-[var(--brand-navy-light)] hover:shadow-md transition-all duration-200 flex flex-col justify-between">
                 {evt.image_url && (
                   <div className="relative mb-4 rounded-xl overflow-hidden aspect-[16/9]">
-                    <img
+                    <Image
+                      fill
+                      unoptimized
+                      sizes="(max-width: 768px) 100vw, 50vw"
                       src={evt.image_url}
                       alt={evt.title}
                       className="w-full h-full object-cover"

@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node scripts/run-tests.mjs",
-    "test:http": "node tests/http-smoke.mjs"
+    "test:http": "node tests/http-smoke.mjs",
+    "test:database": "node scripts/run-database-tests.mjs",
+    "test:browser": "node tests/browser-workflows.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
@@ -20,6 +22,11 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.6.0"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.5"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

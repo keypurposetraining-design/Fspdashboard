@@ -1,17 +1,17 @@
 import React from 'react';
 
-export interface Column {
+export interface Column<T> {
   header: string;
   accessor: string;
-  render?: (row: any) => React.ReactNode;
+  render?: (row: T) => React.ReactNode;
 }
 
-export interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {
-  columns: Column[];
-  data: any[];
+export interface TableProps<T> extends React.TableHTMLAttributes<HTMLTableElement> {
+  columns: Column<T>[];
+  data: T[];
 }
 
-export const Table = ({ columns, data, ...props }: TableProps) => {
+export function Table<T>({ columns, data, ...props }: TableProps<T>) {
   return (
     <table className="w-full text-left border-collapse" {...props}>
       <thead>
@@ -28,7 +28,7 @@ export const Table = ({ columns, data, ...props }: TableProps) => {
           <tr key={i} className="border-b border-[var(--card-border)]/50 hover:bg-[var(--muted-light)]/30 transition-colors">
             {columns?.map((col, j) => (
               <td key={j} className="p-3 text-sm text-[var(--foreground)]">
-                {col.render ? col.render(row) : row[col.accessor]}
+                {col.render ? col.render(row) : String(row[col.accessor as keyof T] ?? "")}
               </td>
             ))}
           </tr>

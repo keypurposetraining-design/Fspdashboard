@@ -25,7 +25,7 @@ function harness(role = 'admin', providers = ['email'], failure) {
     return [state[i], v => { state[i] = typeof v === 'function' ? v(state[i]) : v; }];
   }};
   const signIn = { providers, hasPassword: providers.includes('email'), usesGoogle: providers.includes('google') };
-  const button = ({ children, icon, variant, size, ...props }) => React.createElement('button', props, children);
+  const button = ({ children, ...props }) => { delete props.icon; delete props.variant; delete props.size; return React.createElement('button', props, children); };
   const link = ({ children, href }) => React.createElement('a', { href }, children);
   const deps = {
     react: mockReact,

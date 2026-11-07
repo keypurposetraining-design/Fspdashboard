@@ -1,41 +1,32 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Search, Plus, Award, Trash2, X, RefreshCcw } from "lucide-react";
+import { Table } from "@/components/ui/Table";
+import { CertificateRow, CourseRow, PersonRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { Plus, RefreshCcw, Search, Trash2, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function AdminCertificates() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [certificates, setCertificates] = useState<any[]>([]);
-  const [filteredCertificates, setFilteredCertificates] = useState<any[]>([]);
+  const [certificates, setCertificates] = useState<CertificateRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [members, setMembers] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
+  const [members, setMembers] = useState<PersonRow[]>([]);
+  const [courses, setCourses] = useState<CourseRow[]>([]);
 
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [issueMemberId, setIssueMemberId] = useState("");
   const [issueCourseId, setIssueCourseId] = useState("");
   const [certUrl, setCertUrl] = useState("");
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchInitialData();
-  }, []);
-
-  async function fetchInitialData() {
+  const fetchInitialData = useCallback(async () => {
     try {
       setLoading(true);
       const [certsRes, membersRes, coursesRes] = await Promise.all([
@@ -48,26 +39,39 @@ export default function AdminCertificates() {
       if (membersRes.error) throw membersRes.error;
       if (coursesRes.error) throw coursesRes.error;
 
-      setCertificates(certsRes.data || []);
-      setFilteredCertificates(certsRes.data || []);
-      setMembers(membersRes.data || []);
-      setCourses(coursesRes.data || []);
-    } catch (err: any) {
-      console.error("Error fetching initial certificates data:", err.message);
+      setCertificates((certsRes.data || []) as unknown as CertificateRow[]);
+      setMembers((membersRes.data || []) as unknown as PersonRow[]);
+      setCourses((coursesRes.data || []) as unknown as CourseRow[]);
+    } catch (err: unknown) {
+      console.error("Error fetching initial certificates data:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchInitialData();
+    });
+    return () => { cancelled = true; };
+  }, [fetchInitialData, supabase]);
 
   // Handle Search
-  useEffect(() => {
+  const filteredCertificates = useMemo(() => {
     const q = searchQuery.toLowerCase();
     const filtered = certificates.filter(c => {
       const memberName = `${c.members?.first_name || ""} ${c.members?.last_name || ""}`.toLowerCase();
       const courseTitle = (c.courses?.title || "").toLowerCase();
       return memberName.includes(q) || courseTitle.includes(q);
     });
-    setFilteredCertificates(filtered);
+    return filtered;
   }, [searchQuery, certificates]);
 
   const handleIssueCertificate = async (e: React.FormEvent) => {
@@ -103,8 +107,8 @@ export default function AdminCertificates() {
       setIssueCourseId("");
       setCertUrl("");
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error issuing certificate: " + err.message);
+    } catch (err: unknown) {
+      alert("Error issuing certificate: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -131,8 +135,8 @@ export default function AdminCertificates() {
       });
 
       await fetchInitialData();
-    } catch (err: any) {
-      alert("Error revoking certificate: " + err.message);
+    } catch (err: unknown) {
+      alert("Error revoking certificate: " + errorMessage(err));
     } finally {
       setLoading(false);
     }

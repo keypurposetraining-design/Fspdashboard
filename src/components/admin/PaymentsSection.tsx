@@ -1,35 +1,26 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Search, Check, RefreshCcw } from "lucide-react";
+import { Table } from "@/components/ui/Table";
+import { PaymentRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { Check, RefreshCcw } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 export function PaymentsSection() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [filteredPayments, setFilteredPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchPayments();
-  }, []);
-
-  async function fetchPayments() {
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -48,24 +39,37 @@ export function PaymentsSection() {
           members (
             first_name,
             last_name,
-            users (
+            users!members_user_id_fkey (
               email
             )
           )
         `);
 
       if (error) throw error;
-      setPayments(data || []);
-      setFilteredPayments(data || []);
-    } catch (err: any) {
-      console.error("Error fetching payments:", err.message);
+      setPayments((data || []) as unknown as PaymentRow[]);
+    } catch (err: unknown) {
+      console.error("Error fetching payments:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchPayments();
+    });
+    return () => { cancelled = true; };
+  }, [fetchPayments, supabase]);
 
   // Handle Search & Filter
-  useEffect(() => {
+  const filteredPayments = useMemo(() => {
     const q = searchQuery.toLowerCase();
     const filtered = payments.filter(p => {
       const memberName = `${p.members?.first_name || ""} ${p.members?.last_name || ""}`.toLowerCase();
@@ -74,7 +78,7 @@ export function PaymentsSection() {
       const matchesStatus = statusFilter === "all" || p.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-    setFilteredPayments(filtered);
+    return filtered;
   }, [searchQuery, statusFilter, payments]);
 
   const handleUpdateStatus = async (paymentId: string, newStatus: string) => {
@@ -116,8 +120,8 @@ export function PaymentsSection() {
       }
 
       await fetchPayments();
-    } catch (err: any) {
-      alert("Error updating payment: " + err.message);
+    } catch (err: unknown) {
+      alert("Error updating payment: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -139,7 +143,7 @@ export function PaymentsSection() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
-            <Select value={statusFilter} onChange={(e: any) => setStatusFilter(e.target.value)} className="w-40 border rounded px-2">
+            <Select value={statusFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)} className="w-40 border rounded px-2">
               <option value="all">All Payments</option>
               <option value="pending">Pending</option>
               <option value="succeeded">Succeeded</option>

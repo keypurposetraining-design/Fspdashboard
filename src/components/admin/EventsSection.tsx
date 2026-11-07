@@ -1,25 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Table } from "@/components/ui/Table";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
-import { Search, Plus, Edit, Trash2, Calendar, Users, X, RefreshCcw } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Table } from "@/components/ui/Table";
+import { EventRow, RegistrationRow, UserRow, errorMessage } from "@/lib/legacy-rows";
+import { createClient } from "@/lib/supabase/client";
+import { Edit, Plus, RefreshCcw, Search, Trash2, Users, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 export function EventsSection() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<any[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventRow | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [isRegistrationsModalOpen, setIsRegistrationsModalOpen] = useState(false);
-  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -29,18 +29,9 @@ export function EventsSection() {
   const [location, setLocation] = useState("");
   const [fee, setFee] = useState("");
 
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserRow | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setCurrentUser(data.user);
-      }
-    });
-    fetchEvents();
-  }, []);
-
-  async function fetchEvents() {
+  const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -60,23 +51,36 @@ export function EventsSection() {
         .order("start_time", { ascending: true });
 
       if (error) throw error;
-      setEvents(data || []);
-      setFilteredEvents(data || []);
-    } catch (err: any) {
-      console.error("Error fetching events:", err.message);
+      setEvents((data || []) as unknown as EventRow[]);
+    } catch (err: unknown) {
+      console.error("Error fetching events:", errorMessage(err));
     } finally {
       setLoading(false);
     }
-  }
+  }, [supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          setCurrentUser((data.user) as unknown as UserRow | null);
+        }
+    });
+    fetchEvents();
+    });
+    return () => { cancelled = true; };
+  }, [fetchEvents, supabase]);
 
   // Handle Search
-  useEffect(() => {
+  const filteredEvents = useMemo(() => {
     const q = searchQuery.toLowerCase();
     const filtered = events.filter(e =>
       (e.title || "").toLowerCase().includes(q) ||
       (e.location || "").toLowerCase().includes(q)
     );
-    setFilteredEvents(filtered);
+    return filtered;
   }, [searchQuery, events]);
 
   const resetForm = () => {
@@ -146,15 +150,15 @@ export function EventsSection() {
 
       setIsEventModalOpen(false);
       await fetchEvents();
-    } catch (err: any) {
-      alert("Error saving event: " + err.message);
+    } catch (err: unknown) {
+      alert("Error saving event: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenEditEvent = (evt: any) => {
-    setSelectedEvent(evt);
+  const handleOpenEditEvent = (evt: EventRow) => {
+    setSelectedEvent((evt) as unknown as EventRow | null);
     setTitle(evt.title || "");
     setDescription(evt.description || "");
 
@@ -191,8 +195,8 @@ export function EventsSection() {
       });
 
       await fetchEvents();
-    } catch (err: any) {
-      alert("Error deleting event: " + err.message);
+    } catch (err: unknown) {
+      alert("Error deleting event: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -210,7 +214,7 @@ export function EventsSection() {
           members (
             first_name,
             last_name,
-            users (
+            users!members_user_id_fkey (
               email
             )
           )
@@ -218,10 +222,10 @@ export function EventsSection() {
         .eq("event_id", eventId);
 
       if (error) throw error;
-      setRegistrations(data || []);
+      setRegistrations((data || []) as unknown as RegistrationRow[]);
       setIsRegistrationsModalOpen(true);
-    } catch (err: any) {
-      alert("Error loading registrations: " + err.message);
+    } catch (err: unknown) {
+      alert("Error loading registrations: " + errorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -235,7 +239,7 @@ export function EventsSection() {
           <h1 className="fsp-dot text-2xl font-black text-slate-900 tracking-tight">Events Management</h1>
           <p className="text-sm text-slate-500 font-medium">Schedule live workshops, group dynamics practice, or capstone evaluation events.</p>
         </div>
-        <Button size="sm" onClick={() => { setSelectedEvent(null); resetForm(); setIsEventModalOpen(true); }} icon={<Plus className="w-4 h-4" />}>
+        <Button size="sm" onClick={() => { setSelectedEvent((null) as unknown as EventRow | null); resetForm(); setIsEventModalOpen(true); }} icon={<Plus className="w-4 h-4" />}>
           Schedule Event
         </Button>
       </div>

@@ -153,7 +153,7 @@ export interface Notification {
   id: string;
   user_id: string;
   type: "info" | "warning" | "alert" | "message";
-  payload?: any;
+  payload?: Record<string, unknown>;
   read_at?: Date;
   created_at: Date;
   created_by?: string;
@@ -177,12 +177,12 @@ export interface AuditLog {
   record_id?: string;
   performed_by?: string;
   performed_at: Date;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export interface AppSetting {
   key: string;
-  value: any; // JSONB
+  value: unknown; // JSONB
   updated_at: Date;
   updated_by?: string;
 }
